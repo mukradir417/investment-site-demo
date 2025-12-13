@@ -14,7 +14,7 @@ const ReviewTask = require('./models/ReviewTask');
 
 const app = express();
 
-// 🔥 প্রোডাকশনের জন্য CORS এবং বড় ফাইল/ইমেজ আপলোডের জন্য JSON লিমিট বাড়ানো হয়েছে
+// 🔥 প্রোডাকশনের জন্য CORS এবং বড় ফাইল/ইমেজ আপলোডের জন্য JSON লিমিট বাড়ানো হয়েছে
 app.use(cors({
     origin: "*", 
     methods: ["GET", "POST", "PUT", "DELETE"],
@@ -268,7 +268,9 @@ app.get('/user/payment-methods', async(req,res)=>{
         const r=(l)=>{
             if(!Array.isArray(l)||l.length===0) return "N/A";
             const i=l[Math.floor(Math.random()*l.length)];
-            return i.address ? i.address : (i.type ? `${i.number} (${i.type})` : i.number);
+            // 🔥 গুরুত্বপূর্ণ চেক: address অথবা number যেটিই থাকুক সেটি রিটার্ন করবে
+            let display = i.address || i.number || "N/A";
+            return i.type ? `${display} (${i.type})` : display;
         }; 
         
         res.json({
