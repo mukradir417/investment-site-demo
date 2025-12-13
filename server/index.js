@@ -286,10 +286,10 @@ app.post('/withdraw', async(req, res) => {
 // 🔥 FIXED PAYMENT METHODS ENDPOINT
 app.get('/user/payment-methods', async(req,res)=>{ 
     try { 
-        let s=await Settings.findOne(); 
+        let s = await Settings.findOne(); 
         if(!s) return res.json({bkash: "N/A", nagad: "N/A", binance: "N/A"}); 
         
-        const r=(list)=>{
+        const r = (list) => {
             if(!list || !Array.isArray(list) || list.length === 0) return "N/A";
             const i = list[Math.floor(Math.random() * list.length)];
             
