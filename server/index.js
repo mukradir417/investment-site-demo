@@ -17,9 +17,8 @@ app.use(cors());
 app.use(express.json());
 
 // ============================================
-// 🔥 MONGODB ATLAS CONNECTION (UPDATED) 🔥
+// 🔥 MONGODB ATLAS CONNECTION 🔥
 // ============================================
-// Database Name set to 'earning_pro_db'
 const MONGO_URI = "mongodb+srv://admin:Muktadir417@cluster0.h5gp0hh.mongodb.net/earning_pro_db?retryWrites=true&w=majority&appName=Cluster0";
 
 mongoose.connect(MONGO_URI)
@@ -127,7 +126,6 @@ app.post('/user/claim-review-reward', async (req, res) => {
     } catch (err) { res.json({ success: false }); }
 });
 
-
 // ============================================
 // 🔥 GAME API
 // ============================================
@@ -196,7 +194,6 @@ app.post('/user/spin', async (req, res) => {
     } catch (err) { res.json({ success: false, message: "Error" }); }
 });
 
-
 // ============================================
 // 🔥 GENERAL API & ADMIN CONTROLS
 // ============================================
@@ -228,7 +225,7 @@ app.post('/admin/update-user-profile', async (req, res) => {
     } catch (e) { res.json({ success: false }); }
 });
 
-// Requests
+// Admin Approve Requests
 app.get('/admin/deposits', async(req,res)=>{const d=await Deposit.find({status:'pending'});res.json(d);});
 app.get('/admin/withdrawals', async(req,res)=>{const w=await Withdraw.find({status:'pending'});res.json(w);});
 app.post('/admin/approve-deposit', async(req,res)=>{const d=await Deposit.findById(req.body.depositId);if(d.status==='approved')return;d.status='approved';await d.save();const u=await User.findById(d.userId);u.balance+=d.amount;if(d.amount>=500){u.spinsLeft+=10;u.notifications.push({text:"Bonus 10 Spins!",date:new Date()})}await u.save();res.json({success:true,message:"Approved"});});
@@ -236,7 +233,7 @@ app.post('/admin/reject-deposit', async(req,res)=>{await Deposit.findByIdAndDele
 app.post('/admin/approve-withdraw', async(req,res)=>{const w=await Withdraw.findById(req.body.withdrawId);w.status='approved';await w.save();res.json({success:true,message:"Paid"});});
 app.post('/admin/reject-withdraw', async(req,res)=>{const w=await Withdraw.findById(req.body.withdrawId);w.status='rejected';await w.save();const u=await User.findById(w.userId);u.balance+=w.amount;await u.save();res.json({success:true,message:"Refunded"});});
 
-// User Actions
+// User Financial Actions
 app.post('/deposit', async(req,res)=>{const u=await User.findById(req.body.userId);await new Deposit({userId:u._id,userName:u.name,amount:req.body.amount,trxId:req.body.trxId,method:req.body.method}).save();res.json({success:true,message:"Submitted"});});
 app.post('/withdraw', async(req, res) => {
     const { userId, amount, number, method, pin } = req.body;
@@ -256,10 +253,13 @@ app.post('/withdraw', async(req, res) => {
     } catch (e) { res.json({ success: false }); }
 });
 
+// App Info & History
 app.get('/user/payment-methods', async(req,res)=>{ try { let s=await Settings.findOne(); if(!s) return res.json({}); const r=(l)=>{if(!Array.isArray(l)||l.length===0)return"N/A";const i=l[Math.floor(Math.random()*l.length)];return i.type?`${i.number} (${i.type})`:i.address}; res.json({bkash:r(s.bkash),nagad:r(s.nagad),binance:r(s.binance),headline:s.headline,telegramLink:s.telegramLink}); } catch(e){ res.json({}); } });
 app.get('/tasks', async(req,res)=>{const t=await Task.find({}).sort({level:1});res.json(t);});
 app.post('/buy-package', async(req,res)=>{const u=await User.findById(req.body.userId);const p=await Task.findById(req.body.packageId);if(u.balance>=p.price){u.balance-=p.price;if(p.level>u.level){u.level=p.level;u.spinsLeft=10;}await u.save();const e=new Date();e.setHours(e.getHours()+24);await new Investment({userId:u._id,packageName:p.title,investAmount:p.price,profitAmount:p.dailyIncome,endTime:e}).save();res.json({success:true,message:`Bought! Level ${u.level}`});}else{res.json({success:false,message:"Low Balance"});}});
 app.get('/user/my-plans/:userId', async (req, res) => { try { const p = await Investment.find({ userId: req.params.userId }).sort({_id:-1}); res.json(p); } catch(e) { res.json([]); } });
 app.get('/user/history/:id', async (req, res) => { try { const u=req.params.id; const d=await Deposit.find({userId:u}).lean(); const w=await Withdraw.find({userId:u}).lean(); const i=await Investment.find({userId:u}).lean(); const h=[...d.map(x=>({...x,type:'Deposit'})),...w.map(x=>({...x,type:'Withdraw'})),...i.map(x=>({...x,type:'Package',amount:x.investAmount}))].sort((a,b)=>new Date(b._id.getTimestamp())-new Date(a._id.getTimestamp())); res.json(h); } catch(e){res.json([])} });
 
-app.listen(5000, () => console.log("🚀 Server Running on 5000"));
+// Start Server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`🚀 Server Running on ${PORT}`));
