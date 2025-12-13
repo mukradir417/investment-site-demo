@@ -14,7 +14,7 @@ const ReviewTask = require('./models/ReviewTask');
 
 const app = express();
 
-// 🔥 প্রোডাকশনের জন্য CORS এবং বড় ফাইল/ইমেজ আপলোডের জন্য JSON লিমিট বাড়ানো হয়েছে
+// 🔥 প্রোডাকশনের জন্য CORS এবং JSON লিমিট বাড়ানো হয়েছে
 app.use(cors({
     origin: "*", 
     methods: ["GET", "POST", "PUT", "DELETE"],
@@ -58,7 +58,6 @@ cron.schedule('0 6 * * *', async () => {
         console.log("✅ Daily Updates Done!");
     } catch (err) { console.log(err); }
 });
-
 
 // ============================================
 // 🔥 REVIEW TASK API
@@ -203,8 +202,8 @@ app.post('/admin/add-number', async (req, res) => {
     const { method, number, type } = req.body; 
     let s = await Settings.findOne(); 
     if(!s) s=new Settings(); 
-    if(method=='bkash') s.bkash.push({number, type: type || 'personal'}); 
-    if(method=='nagad') s.nagad.push({number, type: type || 'personal'}); 
+    if(method=='bkash') s.bkash.push({number,type}); 
+    if(method=='nagad') s.nagad.push({number,type}); 
     if(method=='binance') s.binance.push({address:number}); 
     await s.save(); 
     res.json({ success: true, message: "Added" }); 
@@ -213,10 +212,9 @@ app.post('/admin/add-number', async (req, res) => {
 app.post('/admin/delete-number', async (req, res) => { 
     const { method, numberId } = req.body; 
     let s = await Settings.findOne(); 
-    // ID checking with conversion to string for safety
-    if(method=='bkash') s.bkash=s.bkash.filter(n=>n._id.toString() !== numberId); 
-    if(method=='nagad') s.nagad=s.nagad.filter(n=>n._id.toString() !== numberId); 
-    if(method=='binance') s.binance=s.binance.filter(n=>n._id.toString() !== numberId); 
+    if(method=='bkash') s.bkash=s.bkash.filter(n=>n._id!=numberId); 
+    if(method=='nagad') s.nagad=s.nagad.filter(n=>n._id!=numberId); 
+    if(method=='binance') s.binance=s.binance.filter(n=>n._id!=numberId); 
     await s.save(); 
     res.json({ success: true, message: "Deleted" }); 
 });
@@ -225,7 +223,17 @@ app.get('/admin/users', async(req,res)=>{const u=await User.find({});res.json(u)
 app.post('/admin/update-balance', async(req,res)=>{const u=await User.findById(req.body.userId);u.balance+=Number(req.body.amount);await u.save();res.json({success:true,message:"Updated"});});
 app.delete('/admin/user/:id', async(req,res)=>{await User.findByIdAndDelete(req.params.id);res.json({success:true,message:"Deleted"});});
 app.post('/admin/send-bonus', async(req,res)=>{await User.updateMany({},{$inc:{balance:Number(req.body.amount)}});res.json({success:true,message:"Sent"});});
-app.post('/admin/send-notification', async (req, res) => { const { type, userId, message } = req.body; const notif = { text: message, date: new Date() }; if (type === 'global') await User.updateMany({}, { $push: { notifications: notif } }); else await User.findByIdAndUpdate(userId, { $push: { notifications: notif } }); res.json({ success: true, message: "Sent" }); });
+
+// 🔥 NOTIFICATION API FIXED
+app.post('/admin/send-notification', async (req, res) => { 
+    const { type, userId, message } = req.body; 
+    const notif = { text: message, date: new Date() }; 
+    try {
+        if (type === 'global') await User.updateMany({}, { $push: { notifications: notif } }); 
+        else await User.findByIdAndUpdate(userId, { $push: { notifications: notif } }); 
+        res.json({ success: true, message: "Sent" }); 
+    } catch (e) { res.json({ success: false }); }
+});
 
 app.post('/admin/update-user-profile', async (req, res) => {
     const { userId, password, withdrawPin } = req.body;
@@ -244,8 +252,23 @@ app.get('/admin/withdrawals', async(req,res)=>{const w=await Withdraw.find({stat
 app.post('/admin/approve-deposit', async(req,res)=>{const d=await Deposit.findById(req.body.depositId);if(d.status==='approved')return;d.status='approved';await d.save();const u=await User.findById(d.userId);u.balance+=d.amount;if(d.amount>=500){u.spinsLeft+=10;u.notifications.push({text:"Bonus 10 Spins!",date:new Date()})}await u.save();res.json({success:true,message:"Approved"});});
 app.post('/admin/approve-withdraw', async(req,res)=>{const w=await Withdraw.findById(req.body.withdrawId);w.status='approved';await w.save();res.json({success:true,message:"Paid"});});
 
-// User Actions
-app.post('/deposit', async(req,res)=>{const u=await User.findById(req.body.userId);await new Deposit({userId:u._id,userName:u.name,amount:req.body.amount,trxId:req.body.trxId,method:req.body.method}).save();res.json({success:true,message:"Submitted"});});
+// 🔥 DEPOSIT API UPDATED WITH SENDER ID
+app.post('/deposit', async(req,res)=>{
+    const { userId, amount, trxId, method, senderId } = req.body;
+    try {
+        const u = await User.findById(userId);
+        await new Deposit({
+            userId: u._id,
+            userName: u.name,
+            amount: Number(amount),
+            trxId: trxId,
+            method: method,
+            senderId: senderId // 🔥 ইউজার কোন নম্বর/আইডি থেকে পাঠিয়েছে
+        }).save();
+        res.json({success:true, message:"Submitted"});
+    } catch (e) { res.json({success:false}); }
+});
+
 app.post('/withdraw', async(req, res) => {
     const { userId, amount, number, method, pin } = req.body;
     try {
@@ -269,10 +292,8 @@ app.get('/user/payment-methods', async(req,res)=>{
         const r=(l)=>{
             if(!Array.isArray(l)||l.length===0) return "N/A";
             const i=l[Math.floor(Math.random()*l.length)];
-            // 🔥 গুরুত্বপূর্ণ ফিক্স: নম্বর অথবা অ্যাড্রেস যেটিই থাকুক সেটি খুঁজে বের করবে
-            let val = i.number || i.address || "N/A";
-            // টাইপ থাকলে (যেমন: personal) সেটি পাশে দেখাবে
-            return i.type ? `${val} (${i.type})` : val;
+            let display = i.address || i.number || "N/A";
+            return i.type ? `${display} (${i.type})` : display;
         }; 
         
         res.json({
