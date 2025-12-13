@@ -14,7 +14,7 @@ const ReviewTask = require('./models/ReviewTask');
 
 const app = express();
 
-// 🔥 প্রোডাকশনের জন্য CORS এবং JSON লিমিট বাড়ানো হয়েছে
+// 🔥 প্রোডাকশনের জন্য CORS এবং JSON লিমিট বাড়ানো হয়েছে
 app.use(cors({
     origin: "*", 
     methods: ["GET", "POST", "PUT", "DELETE"],
@@ -58,6 +58,7 @@ cron.schedule('0 6 * * *', async () => {
         console.log("✅ Daily Updates Done!");
     } catch (err) { console.log(err); }
 });
+
 
 // ============================================
 // 🔥 REVIEW TASK API
@@ -202,8 +203,8 @@ app.post('/admin/add-number', async (req, res) => {
     const { method, number, type } = req.body; 
     let s = await Settings.findOne(); 
     if(!s) s=new Settings(); 
-    if(method=='bkash') s.bkash.push({number,type}); 
-    if(method=='nagad') s.nagad.push({number,type}); 
+    if(method=='bkash') s.bkash.push({number, type: type || 'personal'}); 
+    if(method=='nagad') s.nagad.push({number, type: type || 'personal'}); 
     if(method=='binance') s.binance.push({address:number}); 
     await s.save(); 
     res.json({ success: true, message: "Added" }); 
@@ -212,9 +213,9 @@ app.post('/admin/add-number', async (req, res) => {
 app.post('/admin/delete-number', async (req, res) => { 
     const { method, numberId } = req.body; 
     let s = await Settings.findOne(); 
-    if(method=='bkash') s.bkash=s.bkash.filter(n=>n._id!=numberId); 
-    if(method=='nagad') s.nagad=s.nagad.filter(n=>n._id!=numberId); 
-    if(method=='binance') s.binance=s.binance.filter(n=>n._id!=numberId); 
+    if(method=='bkash') s.bkash=s.bkash.filter(n=>n._id.toString() !== numberId); 
+    if(method=='nagad') s.nagad=s.nagad.filter(n=>n._id.toString() !== numberId); 
+    if(method=='binance') s.binance=s.binance.filter(n=>n._id.toString() !== numberId); 
     await s.save(); 
     res.json({ success: true, message: "Deleted" }); 
 });
@@ -224,7 +225,6 @@ app.post('/admin/update-balance', async(req,res)=>{const u=await User.findById(r
 app.delete('/admin/user/:id', async(req,res)=>{await User.findByIdAndDelete(req.params.id);res.json({success:true,message:"Deleted"});});
 app.post('/admin/send-bonus', async(req,res)=>{await User.updateMany({},{$inc:{balance:Number(req.body.amount)}});res.json({success:true,message:"Sent"});});
 
-// 🔥 NOTIFICATION API FIXED
 app.post('/admin/send-notification', async (req, res) => { 
     const { type, userId, message } = req.body; 
     const notif = { text: message, date: new Date() }; 
@@ -252,7 +252,7 @@ app.get('/admin/withdrawals', async(req,res)=>{const w=await Withdraw.find({stat
 app.post('/admin/approve-deposit', async(req,res)=>{const d=await Deposit.findById(req.body.depositId);if(d.status==='approved')return;d.status='approved';await d.save();const u=await User.findById(d.userId);u.balance+=d.amount;if(d.amount>=500){u.spinsLeft+=10;u.notifications.push({text:"Bonus 10 Spins!",date:new Date()})}await u.save();res.json({success:true,message:"Approved"});});
 app.post('/admin/approve-withdraw', async(req,res)=>{const w=await Withdraw.findById(req.body.withdrawId);w.status='approved';await w.save();res.json({success:true,message:"Paid"});});
 
-// 🔥 DEPOSIT API UPDATED WITH SENDER ID
+// User Actions
 app.post('/deposit', async(req,res)=>{
     const { userId, amount, trxId, method, senderId } = req.body;
     try {
@@ -263,7 +263,7 @@ app.post('/deposit', async(req,res)=>{
             amount: Number(amount),
             trxId: trxId,
             method: method,
-            senderId: senderId // 🔥 ইউজার কোন নম্বর/আইডি থেকে পাঠিয়েছে
+            senderId: senderId
         }).save();
         res.json({success:true, message:"Submitted"});
     } catch (e) { res.json({success:false}); }
@@ -289,11 +289,15 @@ app.get('/user/payment-methods', async(req,res)=>{
         let s=await Settings.findOne(); 
         if(!s) return res.json({bkash: "N/A", nagad: "N/A", binance: "N/A"}); 
         
-        const r=(l)=>{
-            if(!Array.isArray(l)||l.length===0) return "N/A";
-            const i=l[Math.floor(Math.random()*l.length)];
-            let display = i.address || i.number || "N/A";
-            return i.type ? `${display} (${i.type})` : display;
+        const r=(list)=>{
+            if(!list || !Array.isArray(list) || list.length === 0) return "N/A";
+            const i = list[Math.floor(Math.random() * list.length)];
+            
+            // 🔥 গুরুত্বপূর্ণ ফিক্স: নম্বর অথবা অ্যাড্রেস যেটিই থাকুক সেটি খুজে বের করার লজিক
+            let displayValue = i.number || i.address || "N/A";
+            
+            // যদি টাইপ (যেমন: personal) থাকে সেটি পাশে দেখাবে
+            return i.type ? `${displayValue} (${i.type})` : displayValue;
         }; 
         
         res.json({
@@ -310,7 +314,7 @@ app.get('/tasks', async(req,res)=>{const t=await Task.find({}).sort({level:1});r
 app.post('/buy-package', async(req,res)=>{const u=await User.findById(req.body.userId);const p=await Task.findById(req.body.packageId);if(u.balance>=p.price){u.balance-=p.price;if(p.level>u.level){u.level=p.level;u.spinsLeft=10;}await u.save();const e=new Date();e.setHours(e.getHours()+24);await new Investment({userId:u._id,packageName:p.title,investAmount:p.price,profitAmount:p.dailyIncome,endTime:e}).save();res.json({success:true,message:`Bought! Level ${u.level}`});}else{res.json({success:false,message:"Low Balance"});}});
 app.get('/user/my-plans/:userId', async (req, res) => { try { const p = await Investment.find({ userId: req.params.userId }).sort({_id:-1}); res.json(p); } catch(e) { res.json([]); } });
 
-// 🔥 FULL HISTORY API
+// Full History
 app.get('/user/history/:id', async (req, res) => { 
     try { 
         const u=req.params.id; 
