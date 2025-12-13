@@ -33,6 +33,10 @@ const Admin = () => {
     const [deposits, setDeposits] = useState([]);
     const [withdraws, setWithdraws] = useState([]);
 
+    // 🔥 VIP PACKAGE STATES
+    const [packages, setPackages] = useState([]);
+    const [newPackage, setNewPackage] = useState({ title: '', price: '', dailyIncome: '', level: 1, image: '' });
+
     // Notification & Games
     const [notifMessage, setNotifMessage] = useState("");
     const [targetUserId, setTargetUserId] = useState("");
@@ -57,10 +61,11 @@ const Admin = () => {
             if(activeTab === 'users') fetchUsers();
             if(activeTab === 'payment' || activeTab === 'general') fetchSettings();
             if(activeTab === 'reviews') fetchReviewTasks(); 
+            if(activeTab === 'packages') fetchPackages(); // 🔥 প্যাকেজ লোড
         }
     }, [navigate, activeTab]);
 
-    // --- FETCH FUNCTIONS (Using API_BASE) ---
+    // --- FETCH FUNCTIONS ---
     const fetchSettings = async () => {
         try {
             const res = await axios.get(`${API_BASE}/admin/settings`);
@@ -87,6 +92,12 @@ const Admin = () => {
             setWithdraws(w.data);
         } catch (e) { }
     };
+    const fetchPackages = async () => {
+        try {
+            const res = await axios.get(`${API_BASE}/tasks`);
+            setPackages(res.data);
+        } catch (e) { }
+    };
     const fetchReviewTasks = async () => {
         try {
             const res = await axios.get(`${API_BASE}/admin/review-tasks`);
@@ -95,6 +106,34 @@ const Admin = () => {
     };
 
     // --- HANDLERS ---
+    
+    // 🔥 VIP PACKAGE HANDLERS
+    const handleAddPackage = async () => {
+        if(!newPackage.title || !newPackage.price) return alert("Title and Price required");
+        try {
+            await axios.post(`${API_BASE}/admin/add-task`, newPackage); 
+            alert("Package Added!");
+            setNewPackage({ title: '', price: '', dailyIncome: '', level: 1, image: '' });
+            fetchPackages();
+        } catch(e) { alert("Failed to add package"); }
+    };
+
+    const deletePackage = async (id) => {
+        if(window.confirm("Delete this package?")) {
+            await axios.post(`${API_BASE}/admin/delete-task`, { id });
+            fetchPackages();
+        }
+    };
+
+    const handleImageUpload = (e) => {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setNewPackage({ ...newPackage, image: reader.result });
+        };
+        if(file) reader.readAsDataURL(file);
+    };
+
     const startEditUser = (user) => {
         setEditingUser(user);
         setEditPass(user.password); 
@@ -148,7 +187,9 @@ const Admin = () => {
     const addNumber = async (method, number) => {
         if(!number) return;
         await axios.post(`${API_BASE}/admin/add-number`, { method, number, type:'personal' });
-        if(method==='bkash') setNewBkash(""); if(method==='nagad') setNewNagad(""); if(method==='binance') setNewBinance("");
+        if(method==='bkash') setNewBkash(""); 
+        if(method==='nagad') setNewNagad(""); 
+        if(method==='binance') setNewBinance("");
         fetchSettings();
     };
 
@@ -218,6 +259,7 @@ const Admin = () => {
                 <button onClick={()=>setActiveTab('requests')} style={activeTab==='requests'?activeBtn:inactiveBtn}>📝 Requests {deposits.length+withdraws.length > 0 && <span style={badge}>{deposits.length+withdraws.length}</span>}</button>
                 <button onClick={()=>setActiveTab('notifications')} style={activeTab==='notifications'?activeBtn:inactiveBtn}>🔔 Notify & Gift</button>
                 <button onClick={()=>setActiveTab('users')} style={activeTab==='users'?activeBtn:inactiveBtn}>👥 Users</button>
+                <button onClick={()=>setActiveTab('packages')} style={activeTab==='packages'?activeBtn:inactiveBtn}>💎 VIP Packages</button>
                 <button onClick={()=>setActiveTab('payment')} style={activeTab==='payment'?activeBtn:inactiveBtn}>💰 Payment</button>
                 <button onClick={()=>setActiveTab('games')} style={activeTab==='games'?activeBtn:inactiveBtn}>🎮 Games</button>
                 <button onClick={()=>setActiveTab('reviews')} style={activeTab==='reviews'?activeBtn:inactiveBtn}>⭐ Review Tasks</button> 
@@ -229,6 +271,43 @@ const Admin = () => {
             {/* CONTENT AREA */}
             <div style={{flex:1, padding:'40px', overflowY:'auto'}}>
                 
+                {/* --- TAB: VIP PACKAGES --- */}
+                {activeTab === 'packages' && (
+                    <div>
+                        <h1>Manage VIP Packages</h1>
+                        <div style={cardStyle}>
+                            <h3>➕ Add New VIP Package</h3>
+                            <div style={{display:'flex', gap:'10px', flexWrap:'wrap'}}>
+                                <input placeholder="Title (VIP 1)" value={newPackage.title} onChange={e=>setNewPackage({...newPackage, title:e.target.value})} style={bigInput} />
+                                <input placeholder="Price (৳)" type="number" value={newPackage.price} onChange={e=>setNewPackage({...newPackage, price:e.target.value})} style={bigInput} />
+                                <input placeholder="Daily Income (৳)" type="number" value={newPackage.dailyIncome} onChange={e=>setNewPackage({...newPackage, dailyIncome:e.target.value})} style={bigInput} />
+                                <input placeholder="Unlock Level (1, 2...)" type="number" value={newPackage.level} onChange={e=>setNewPackage({...newPackage, level:e.target.value})} style={bigInput} />
+                                <div style={{width:'100%', marginBottom:'10px'}}>
+                                    <label>Package Image:</label><br/>
+                                    <input type="file" onChange={handleImageUpload} accept="image/*" />
+                                </div>
+                                <button onClick={handleAddPackage} style={{...bigBtn, background:'#ff9800', width:'100%'}}>Save VIP Package</button>
+                            </div>
+                        </div>
+
+                        <div style={{marginTop:'30px'}}>
+                            <h3>Active VIP List</h3>
+                            {packages.map(pkg => (
+                                <div key={pkg._id} style={listItem}>
+                                    <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
+                                        <img src={pkg.image} alt="vip" style={{width:'50px', height:'50px', borderRadius:'8px', objectFit:'cover', background:'#eee'}} />
+                                        <div>
+                                            <b>{pkg.title}</b> (Level {pkg.level}) <br/>
+                                            Price: ৳{pkg.price} | Daily: ৳{pkg.dailyIncome}
+                                        </div>
+                                    </div>
+                                    <button onClick={()=>deletePackage(pkg._id)} style={delBtn}>Remove</button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {/* --- TAB: USERS --- */}
                 {activeTab === 'users' && (
                     <div>
@@ -266,7 +345,7 @@ const Admin = () => {
                             {users.map(u=>(
                                 <div key={u._id} style={listItem}>
                                     <div>
-                                        <b>{u.name}</b> ({u.mobile}) <br/> Bal: <b style={{color:'green'}}>৳{u.balance}</b> | PIN: <b>{u.withdrawPin}</b> <br/> Pass: <small>{u.password}</small>
+                                        <b>{u.name}</b> ({u.mobile}) <br/> Bal: <b style={{color:'green'}}>৳{u.balance}</b> | PIN: <b>{u.withdrawPin}</b> <br/> Pass: <small>{u.password}</small> <br/> ID: <small>{u._id}</small>
                                     </div>
                                     <div>
                                         <button onClick={()=>startEditUser(u)} style={{...actionBtn, background:'#f39c12'}}>Edit</button>
@@ -310,30 +389,42 @@ const Admin = () => {
                     </div>
                 )}
 
-                {/* --- TAB: NOTIFICATIONS --- */}
-                {activeTab === 'notifications' && (
+                {/* --- TAB: GAMES --- */}
+                {activeTab === 'games' && (
                     <div>
-                        <h1>Notify & Bonus</h1>
+                        <h1>Game Control</h1>
                         <div style={cardStyle}>
-                            <h3>🔔 Send Message</h3>
-                            <textarea value={notifMessage} onChange={e=>setNotifMessage(e.target.value)} placeholder="Type message..." style={{...bigInput, height:'100px'}} />
-                            <div style={{marginTop:'15px'}}><input value={targetUserId} onChange={e=>setTargetUserId(e.target.value)} placeholder="User ID (Optional)" style={bigInput} /></div>
-                            <div style={{marginTop:'15px', display:'flex', gap:'10px'}}>
-                                <button onClick={()=>sendNotification('single')} style={{...bigBtn, background:'#0984e3'}}>Send One</button>
-                                <button onClick={()=>sendNotification('global')} style={{...bigBtn, background:'#e17055'}}>Send ALL</button>
+                            <label>Target User ID:</label>
+                            <input value={targetUserId} onChange={e=>setTargetUserId(e.target.value)} placeholder="Paste User ID Here" style={bigInput} />
+                            
+                            <div style={{marginTop:'20px', border:'1px solid #ddd', padding:'20px', borderRadius:'10px', background:'#fff9c4'}}>
+                                <h3>🪙 Set Toss Result</h3>
+                                <div style={{display:'flex', gap:'10px'}}>
+                                    <select value={tossResult} onChange={e=>setTossResult(e.target.value)} style={bigInput}>
+                                        <option value="Head">Head (Win)</option>
+                                        <option value="Tail">Tail (Lose)</option>
+                                    </select>
+                                    <button onClick={()=>handleGameAction('toss')} style={{...bigBtn, background:'#f1c40f', color:'black'}}>Set Toss</button>
+                                </div>
                             </div>
-                        </div>
-                        <div style={{...cardStyle, marginTop:'20px', borderLeft:'5px solid #8e44ad'}}>
-                            <h3 style={{color:'#8e44ad'}}>🎁 Global Money Gift</h3>
-                            <div style={{display:'flex', gap:'10px'}}>
-                                <input type="number" value={globalBonus} onChange={e=>setGlobalBonus(e.target.value)} placeholder="Amount (Tk)" style={bigInput} />
-                                <button onClick={sendGlobalBonus} style={{...bigBtn, background:'#8e44ad'}}>SEND TO EVERYONE</button>
+
+                            <div style={{display:'flex', gap:'20px', marginTop:'20px'}}>
+                                <div style={{flex:1, background:'#e1f5fe', padding:'20px', borderRadius:'10px'}}>
+                                    <h4>🎡 Gift Spins</h4>
+                                    <input type="number" value={giftSpins} onChange={e=>setGiftSpins(e.target.value)} style={bigInput} placeholder="Qty" />
+                                    <button onClick={()=>handleGameAction('spin')} style={{...bigBtn, width:'100%', marginTop:'10px'}}>Send Spins</button>
+                                </div>
+                                <div style={{flex:1, background:'#fce4ec', padding:'20px', borderRadius:'10px'}}>
+                                    <h4>🎯 Set Next Spin Win</h4>
+                                    <input type="number" value={spinWinAmount} onChange={e=>setSpinWinAmount(e.target.value)} style={bigInput} placeholder="Amount" />
+                                    <button onClick={()=>handleGameAction('win')} style={{...bigBtn, width:'100%', marginTop:'10px', background:'#d81b60'}}>Set Win</button>
+                                </div>
                             </div>
                         </div>
                     </div>
                 )}
 
-                {/* --- TAB: PAYMENT --- */}
+                {/* (বাকি Tab গুলো - Payment, Review, General আগের মতোই আছে) */}
                 {activeTab === 'payment' && (
                     <div>
                         <h1>Payment Settings</h1>
@@ -353,31 +444,17 @@ const Admin = () => {
                             </div>
                             {nagadNumbers.map((n,i)=><div key={i} style={listItem}>{n.number} <button onClick={()=>deleteNumber('nagad',n._id)} style={delBtn}>Remove</button></div>)}
                         </div>
-                    </div>
-                )}
-
-                {/* --- TAB: GAMES --- */}
-                {activeTab === 'games' && (
-                    <div>
-                        <h1>Game Control</h1>
-                        <div style={cardStyle}>
-                            <label>Target User ID:</label>
-                            <input value={targetUserId} onChange={e=>setTargetUserId(e.target.value)} placeholder="Paste User ID Here" style={bigInput} />
-                            <div style={{marginTop:'20px', border:'1px solid #ddd', padding:'20px', borderRadius:'10px', background:'#fff9c4'}}>
-                                <h3>🪙 Set Toss Result</h3>
-                                <div style={{display:'flex', gap:'10px'}}>
-                                    <select value={tossResult} onChange={e=>setTossResult(e.target.value)} style={bigInput}>
-                                        <option value="Head">Head (Win)</option>
-                                        <option value="Tail">Tail (Lose)</option>
-                                    </select>
-                                    <button onClick={()=>handleGameAction('toss')} style={{...bigBtn, background:'#f1c40f', color:'black'}}>Set Toss</button>
-                                </div>
+                        <div style={{...cardStyle, marginTop:'20px'}}>
+                            <h3 style={{color:'#f3ba2f'}}>Binance Wallet</h3>
+                            <div style={{display:'flex', gap:'10px', marginBottom:'15px'}}>
+                                <input value={newBinance} onChange={e=>setNewBinance(e.target.value)} placeholder="Enter Address" style={bigInput} />
+                                <button onClick={()=>addNumber('binance',newBinance)} style={{...bigBtn, background:'#f3ba2f', color:'black'}}>ADD</button>
                             </div>
+                            {binanceAddress.map((n,i)=><div key={i} style={listItem}>{n.address} <button onClick={()=>deleteNumber('binance',n._id)} style={delBtn}>Remove</button></div>)}
                         </div>
                     </div>
                 )}
 
-                {/* --- TAB: REVIEWS --- */}
                 {activeTab === 'reviews' && (
                     <div>
                         <h1>Manage Review Tasks</h1>
@@ -400,7 +477,6 @@ const Admin = () => {
                     </div>
                 )}
 
-                {/* --- TAB: SETTINGS --- */}
                 {activeTab === 'general' && (
                     <div>
                         <h1>App Settings</h1>

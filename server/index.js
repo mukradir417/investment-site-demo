@@ -13,8 +13,15 @@ const Investment = require('./models/Investment');
 const ReviewTask = require('./models/ReviewTask');
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+
+// 🔥 প্রোডাকশনের জন্য CORS এবং JSON লিমিট
+app.use(cors({
+    origin: "*", 
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true
+}));
+
+app.use(express.json({ limit: '10mb' })); // বড় ইমেজ বা প্যাকেজ আপলোডের জন্য লিমিট বাড়ানো হয়েছে
 
 // ============================================
 // 🔥 MONGODB ATLAS CONNECTION 🔥
@@ -33,7 +40,6 @@ mongoose.connect(MONGO_URI)
 // ⏰ Auto Update (Daily Reset at 6 AM)
 cron.schedule('0 6 * * *', async () => {
     try {
-        // 1. Profit Distribution
         const investments = await Investment.find({ status: 'running' });
         for (const inv of investments) {
             const user = await User.findById(inv.userId);
@@ -43,15 +49,11 @@ cron.schedule('0 6 * * *', async () => {
             }
         }
         
-        // 2. Reset Spins & Toss
         const users = await User.find({ level: { $gte: 2 } });
         for (const u of users) {
             if(u.spinsLeft < 10) { u.spinsLeft = 10; await u.save(); }
         }
-        await User.updateMany({}, { tossesLeft: 2 });
-
-        // 3. Reset Daily Task Count
-        await User.updateMany({}, { dailyTaskCount: 0 });
+        await User.updateMany({}, { tossesLeft: 2, dailyTaskCount: 0 });
 
         console.log("✅ Daily Updates Done!");
     } catch (err) { console.log(err); }
@@ -144,13 +146,8 @@ app.post('/user/toss', async (req, res) => {
         const user = await User.findById(userId);
         if (user.tossesLeft <= 0) return res.json({ success: false, message: "No tosses left today!" });
 
-        let result = '';
-        if (user.nextTossResult) {
-            result = user.nextTossResult;
-            user.nextTossResult = null; 
-        } else {
-            result = Math.random() < 0.5 ? 'HEAD' : 'TAIL';
-        }
+        let result = user.nextTossResult || (Math.random() < 0.5 ? 'HEAD' : 'TAIL');
+        user.nextTossResult = null;
 
         const winAmount = (result === 'HEAD') ? 5 : 10;
         user.balance += winAmount;
@@ -178,14 +175,8 @@ app.post('/user/spin', async (req, res) => {
         if (user.level < 2) return res.json({ success: false, message: "Level 2 Required!" });
         if (user.spinsLeft <= 0) return res.json({ success: false, message: "No spins left!" });
         
-        let winAmount;
-        if (user.nextSpinWin !== null && user.nextSpinWin !== undefined) { 
-            winAmount = user.nextSpinWin; 
-            user.nextSpinWin = null; 
-        } else { 
-            const chances = [0, 5, 0, 5, 0, 5, 10, 0, 5]; 
-            winAmount = chances[Math.floor(Math.random() * chances.length)]; 
-        }
+        let winAmount = user.nextSpinWin !== null ? user.nextSpinWin : [0, 5, 10, 20][Math.floor(Math.random() * 4)];
+        user.nextSpinWin = null;
         
         user.balance += winAmount; 
         user.spinsLeft -= 1; 
@@ -202,17 +193,33 @@ app.post('/register', async(req,res)=>{try{await new User(req.body).save();res.j
 app.post('/login', async(req,res)=>{const u=await User.findOne({email:req.body.email,password:req.body.password});if(u)res.json({success:true,user:u});else res.json({success:false});});
 app.get('/user/:id', async(req,res)=>{const u=await User.findById(req.params.id);res.json(u);});
 
-app.get('/admin/settings', async (req, res) => { try { let s = await Settings.findOne(); if(!s) s = new Settings(); res.json(s); } catch (e) { res.json({}); } });
+app.get('/admin/settings', async (req, res) => { try { let s = await Settings.findOne(); res.json(s); } catch (e) { res.json({}); } });
 app.post('/admin/update-settings', async (req, res) => { await Settings.findOneAndUpdate({}, req.body, { upsert: true }); res.json({ success: true, message: "Updated" }); });
-app.post('/admin/add-number', async (req, res) => { const { method, number, type } = req.body; let s = await Settings.findOne(); if(!s) s=new Settings(); if(method=='bkash') s.bkash.push({number,type}); if(method=='nagad') s.nagad.push({number,type}); if(method=='binance') s.binance.push({address:number}); await s.save(); res.json({ success: true, message: "Added" }); });
-app.post('/admin/delete-number', async (req, res) => { const { method, numberId } = req.body; let s = await Settings.findOne(); if(method=='bkash') s.bkash=s.bkash.filter(n=>n._id!=numberId); if(method=='nagad') s.nagad=s.nagad.filter(n=>n._id!=numberId); if(method=='binance') s.binance=s.binance.filter(n=>n._id!=numberId); await s.save(); res.json({ success: true, message: "Deleted" }); });
+
+app.post('/admin/add-number', async (req, res) => { 
+    const { method, number, type } = req.body; 
+    let s = await Settings.findOne(); 
+    if(!s) s=new Settings(); 
+    if(method=='bkash') s.bkash.push({number,type}); 
+    if(method=='nagad') s.nagad.push({number,type}); 
+    if(method=='binance') s.binance.push({address:number}); 
+    await s.save(); 
+    res.json({ success: true, message: "Added" }); 
+});
+
+app.post('/admin/delete-number', async (req, res) => { 
+    const { method, numberId } = req.body; 
+    let s = await Settings.findOne(); 
+    if(method=='bkash') s.bkash=s.bkash.filter(n=>n._id!=numberId); 
+    if(method=='nagad') s.nagad=s.nagad.filter(n=>n._id!=numberId); 
+    if(method=='binance') s.binance=s.binance.filter(n=>n._id!=numberId); 
+    await s.save(); 
+    res.json({ success: true, message: "Deleted" }); 
+});
 
 app.get('/admin/users', async(req,res)=>{const u=await User.find({});res.json(u);});
-app.post('/admin/create-user', async(req,res)=>{try{await new User(req.body).save();res.json({success:true,message:"Created"});}catch(e){res.json({success:false,message:"Exists"});}});
 app.post('/admin/update-balance', async(req,res)=>{const u=await User.findById(req.body.userId);u.balance+=Number(req.body.amount);await u.save();res.json({success:true,message:"Updated"});});
 app.delete('/admin/user/:id', async(req,res)=>{await User.findByIdAndDelete(req.params.id);res.json({success:true,message:"Deleted"});});
-app.post('/admin/send-bonus', async(req,res)=>{await User.updateMany({},{$inc:{balance:Number(req.body.amount)}});res.json({success:true,message:"Sent"});});
-app.post('/admin/send-notification', async (req, res) => { const { type, userId, message } = req.body; const notif = { text: message, date: new Date() }; if (type === 'global') await User.updateMany({}, { $push: { notifications: notif } }); else await User.findByIdAndUpdate(userId, { $push: { notifications: notif } }); res.json({ success: true, message: "Sent" }); });
 
 app.post('/admin/update-user-profile', async (req, res) => {
     const { userId, password, withdrawPin } = req.body;
@@ -229,36 +236,63 @@ app.post('/admin/update-user-profile', async (req, res) => {
 app.get('/admin/deposits', async(req,res)=>{const d=await Deposit.find({status:'pending'});res.json(d);});
 app.get('/admin/withdrawals', async(req,res)=>{const w=await Withdraw.find({status:'pending'});res.json(w);});
 app.post('/admin/approve-deposit', async(req,res)=>{const d=await Deposit.findById(req.body.depositId);if(d.status==='approved')return;d.status='approved';await d.save();const u=await User.findById(d.userId);u.balance+=d.amount;if(d.amount>=500){u.spinsLeft+=10;u.notifications.push({text:"Bonus 10 Spins!",date:new Date()})}await u.save();res.json({success:true,message:"Approved"});});
-app.post('/admin/reject-deposit', async(req,res)=>{await Deposit.findByIdAndDelete(req.body.depositId);res.json({success:true,message:"Deleted"});});
 app.post('/admin/approve-withdraw', async(req,res)=>{const w=await Withdraw.findById(req.body.withdrawId);w.status='approved';await w.save();res.json({success:true,message:"Paid"});});
-app.post('/admin/reject-withdraw', async(req,res)=>{const w=await Withdraw.findById(req.body.withdrawId);w.status='rejected';await w.save();const u=await User.findById(w.userId);u.balance+=w.amount;await u.save();res.json({success:true,message:"Refunded"});});
 
-// User Financial Actions
+// User Actions
 app.post('/deposit', async(req,res)=>{const u=await User.findById(req.body.userId);await new Deposit({userId:u._id,userName:u.name,amount:req.body.amount,trxId:req.body.trxId,method:req.body.method}).save();res.json({success:true,message:"Submitted"});});
 app.post('/withdraw', async(req, res) => {
     const { userId, amount, number, method, pin } = req.body;
     try {
         const user = await User.findById(userId);
-        if (user.dailyTaskCount < user.taskLimit) {
-            const pending = user.taskLimit - user.dailyTaskCount;
-            return res.json({ success: false, message: `⚠️ Complete ${pending} more tasks to withdraw!` });
-        }
+        if (user.dailyTaskCount < user.taskLimit) return res.json({ success: false, message: `Complete tasks first!` });
         if (amount < 300) return res.json({ success: false, message: "Min 300 Tk" });
         if (user.withdrawPin !== pin) return res.json({ success: false, message: "Wrong PIN" });
         if (user.balance < amount) return res.json({ success: false, message: "Insufficient Balance" });
-        user.balance -= amount;
-        await user.save();
+        user.balance -= amount; await user.save();
         await new Withdraw({ userId, userName: user.name, method, number, amount }).save();
         res.json({ success: true, message: "Submitted!" });
     } catch (e) { res.json({ success: false }); }
 });
 
-// App Info & History
-app.get('/user/payment-methods', async(req,res)=>{ try { let s=await Settings.findOne(); if(!s) return res.json({}); const r=(l)=>{if(!Array.isArray(l)||l.length===0)return"N/A";const i=l[Math.floor(Math.random()*l.length)];return i.type?`${i.number} (${i.type})`:i.address}; res.json({bkash:r(s.bkash),nagad:r(s.nagad),binance:r(s.binance),headline:s.headline,telegramLink:s.telegramLink}); } catch(e){ res.json({}); } });
+// 🔥 FIXED PAYMENT METHODS ENDPOINT (Binance randomized address added)
+app.get('/user/payment-methods', async(req,res)=>{ 
+    try { 
+        let s=await Settings.findOne(); if(!s) return res.json({}); 
+        const r=(l)=>{
+            if(!Array.isArray(l)||l.length===0) return "N/A";
+            const i=l[Math.floor(Math.random()*l.length)];
+            return i.address ? i.address : (i.type ? `${i.number} (${i.type})` : i.number);
+        }; 
+        res.json({ bkash: r(s.bkash), nagad: r(s.nagad), binance: r(s.binance), headline: s.headline, telegramLink: s.telegramLink }); 
+    } catch(e){ res.json({}); } 
+});
+
 app.get('/tasks', async(req,res)=>{const t=await Task.find({}).sort({level:1});res.json(t);});
 app.post('/buy-package', async(req,res)=>{const u=await User.findById(req.body.userId);const p=await Task.findById(req.body.packageId);if(u.balance>=p.price){u.balance-=p.price;if(p.level>u.level){u.level=p.level;u.spinsLeft=10;}await u.save();const e=new Date();e.setHours(e.getHours()+24);await new Investment({userId:u._id,packageName:p.title,investAmount:p.price,profitAmount:p.dailyIncome,endTime:e}).save();res.json({success:true,message:`Bought! Level ${u.level}`});}else{res.json({success:false,message:"Low Balance"});}});
-app.get('/user/my-plans/:userId', async (req, res) => { try { const p = await Investment.find({ userId: req.params.userId }).sort({_id:-1}); res.json(p); } catch(e) { res.json([]); } });
-app.get('/user/history/:id', async (req, res) => { try { const u=req.params.id; const d=await Deposit.find({userId:u}).lean(); const w=await Withdraw.find({userId:u}).lean(); const i=await Investment.find({userId:u}).lean(); const h=[...d.map(x=>({...x,type:'Deposit'})),...w.map(x=>({...x,type:'Withdraw'})),...i.map(x=>({...x,type:'Package',amount:x.investAmount}))].sort((a,b)=>new Date(b._id.getTimestamp())-new Date(a._id.getTimestamp())); res.json(h); } catch(e){res.json([])} });
+
+// 🔥 FULL HISTORY API (Merged Deposits, Withdrawals, Packages)
+app.get('/user/history/:id', async (req, res) => { 
+    try { 
+        const u=req.params.id; 
+        const d=await Deposit.find({userId:u}).lean(); 
+        const w=await Withdraw.find({userId:u}).lean(); 
+        const i=await Investment.find({userId:u}).lean(); 
+        const h=[...d.map(x=>({...x,type:'Deposit'})),...w.map(x=>({...x,type:'Withdraw'})),...i.map(x=>({...x,type:'Package',amount:x.investAmount}))].sort((a,b)=>new Date(b._id.getTimestamp())-new Date(a._id.getTimestamp())); 
+        res.json(h); 
+    } catch(e){res.json([])} 
+});
+
+// VIP Package Control for Admin
+app.post('/admin/add-task', async (req, res) => {
+    try {
+        const { title, price, dailyIncome, level, image } = req.body;
+        await new Task({ title, price: Number(price), dailyIncome: Number(dailyIncome), level: Number(level), image }).save();
+        res.json({ success: true });
+    } catch (err) { res.json({ success: false }); }
+});
+app.post('/admin/delete-task', async (req, res) => {
+    try { await Task.findByIdAndDelete(req.body.id); res.json({ success: true }); } catch (err) { res.json({ success: false }); }
+});
 
 // Start Server
 const PORT = process.env.PORT || 5000;

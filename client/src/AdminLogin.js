@@ -16,13 +16,13 @@ const AdminLogin = () => {
         // সহজ লগইন ক্রিডেনশিয়াল (আপনি চাইলে পরে চেঞ্জ করতে পারেন)
         // User: admin
         // Pass: 1234
-        if (username === 'admin' && password === '1234') {
+        if (username === 'sabir417' && password === 'sabir417') {
             localStorage.setItem('adminAuth', 'true');
             alert("✅ Login Successful!");
             navigate('/admin');
         } 
         // আপনার আগের বড় আইডির জন্য ব্যাকআপ অপশন
-        else if (username === '02422220005101761' && password === 'Muktadir417') {
+        else if (username === '01734574721' && password === 'Muktadir417') {
             localStorage.setItem('adminAuth', 'true');
             alert("✅ Login Successful!");
             navigate('/admin');
