@@ -14,7 +14,7 @@ const ReviewTask = require('./models/ReviewTask');
 
 const app = express();
 
-// 🔥 প্রোডাকশনের জন্য CORS এবং বড় ফাইল/ইমেজ আপলোডের জন্য JSON লিমিট বাড়ানো হয়েছে
+// 🔥 প্রোডাকশনের জন্য CORS এবং বড় ফাইল/ইমেজ আপলোডের জন্য JSON লিমিট বাড়ানো হয়েছে
 app.use(cors({
     origin: "*", 
     methods: ["GET", "POST", "PUT", "DELETE"],
@@ -203,8 +203,8 @@ app.post('/admin/add-number', async (req, res) => {
     const { method, number, type } = req.body; 
     let s = await Settings.findOne(); 
     if(!s) s=new Settings(); 
-    if(method=='bkash') s.bkash.push({number,type}); 
-    if(method=='nagad') s.nagad.push({number,type}); 
+    if(method=='bkash') s.bkash.push({number, type: type || 'personal'}); 
+    if(method=='nagad') s.nagad.push({number, type: type || 'personal'}); 
     if(method=='binance') s.binance.push({address:number}); 
     await s.save(); 
     res.json({ success: true, message: "Added" }); 
@@ -213,9 +213,10 @@ app.post('/admin/add-number', async (req, res) => {
 app.post('/admin/delete-number', async (req, res) => { 
     const { method, numberId } = req.body; 
     let s = await Settings.findOne(); 
-    if(method=='bkash') s.bkash=s.bkash.filter(n=>n._id!=numberId); 
-    if(method=='nagad') s.nagad=s.nagad.filter(n=>n._id!=numberId); 
-    if(method=='binance') s.binance=s.binance.filter(n=>n._id!=numberId); 
+    // ID checking with conversion to string for safety
+    if(method=='bkash') s.bkash=s.bkash.filter(n=>n._id.toString() !== numberId); 
+    if(method=='nagad') s.nagad=s.nagad.filter(n=>n._id.toString() !== numberId); 
+    if(method=='binance') s.binance=s.binance.filter(n=>n._id.toString() !== numberId); 
     await s.save(); 
     res.json({ success: true, message: "Deleted" }); 
 });
@@ -263,14 +264,15 @@ app.post('/withdraw', async(req, res) => {
 app.get('/user/payment-methods', async(req,res)=>{ 
     try { 
         let s=await Settings.findOne(); 
-        if(!s) return res.json({}); 
+        if(!s) return res.json({bkash: "N/A", nagad: "N/A", binance: "N/A"}); 
         
         const r=(l)=>{
             if(!Array.isArray(l)||l.length===0) return "N/A";
             const i=l[Math.floor(Math.random()*l.length)];
-            // 🔥 গুরুত্বপূর্ণ চেক: address অথবা number যেটিই থাকুক সেটি রিটার্ন করবে
-            let display = i.address || i.number || "N/A";
-            return i.type ? `${display} (${i.type})` : display;
+            // 🔥 গুরুত্বপূর্ণ ফিক্স: নম্বর অথবা অ্যাড্রেস যেটিই থাকুক সেটি খুঁজে বের করবে
+            let val = i.number || i.address || "N/A";
+            // টাইপ থাকলে (যেমন: personal) সেটি পাশে দেখাবে
+            return i.type ? `${val} (${i.type})` : val;
         }; 
         
         res.json({
@@ -280,7 +282,7 @@ app.get('/user/payment-methods', async(req,res)=>{
             headline: s.headline,
             telegramLink: s.telegramLink
         }); 
-    } catch(e){ res.json({}); } 
+    } catch(e){ res.json({bkash: "N/A", nagad: "N/A", binance: "N/A"}); } 
 });
 
 app.get('/tasks', async(req,res)=>{const t=await Task.find({}).sort({level:1});res.json(t);});

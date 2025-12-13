@@ -6,7 +6,7 @@ function Deposit() {
     const [method, setMethod] = useState('bkash');
     const [amount, setAmount] = useState('');
     const [trxId, setTrxId] = useState('');
-    // ইনিশিয়াল ভ্যালু খালি অবজেক্ট রাখা হয়েছে যাতে এরর না আসে
+    // ইনিশিয়াল ভ্যালু খালি অবজেক্ট রাখা হয়েছে যাতে এরর না আসে
     const [numbers, setNumbers] = useState({ bkash: '', nagad: '', binance: '', headline: '' });
     const navigate = useNavigate();
     const userId = localStorage.getItem('userId');
@@ -30,11 +30,11 @@ function Deposit() {
             }
         };
         fetchMethods();
-    }, [userId, navigate, API_BASE]); // ডিপেন্ডেন্সি লিস্ট ঠিক করা হয়েছে
+    }, [userId, navigate, API_BASE]); // ডিপেন্ডেন্সি লিস্ট ঠিক করা হয়েছে
 
     const handleCopy = (text) => {
         if (!text || text === 'N/A' || text === 'Loading...') return;
-        // নম্বর থেকে শুধু ডিজিট কপি করার জন্য স্প্লিট করা হয়েছে (পার্সোনাল লেখা থাকলে বাদ যাবে)
+        // নম্বর থেকে শুধু ডিজিট কপি করার জন্য স্প্লিট করা হয়েছে (পার্সোনাল লেখা থাকলে বাদ যাবে)
         navigator.clipboard.writeText(text.split(' ')[0]); 
         alert("Copied to clipboard!");
     };
@@ -55,7 +55,7 @@ function Deposit() {
         .catch(() => alert("Connection Error! Please try again."));
     };
 
-    // বর্তমান মেথড অনুযায়ী নম্বর সিলেক্ট করা
+    // বর্তমান মেথড অনুযায়ী নম্বর সিলেক্ট করা
     const currentNumber = numbers[method] || "N/A";
 
     return (
