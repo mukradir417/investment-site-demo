@@ -4,7 +4,7 @@ import axios from 'axios';
 
 const Admin = () => {
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState('requests'); // Default Tab
+    const [activeTab, setActiveTab] = useState('requests'); 
 
     // 🔥 প্রোডাকশন ব্যাকএন্ড ইউআরএল (Render URL)
     const API_BASE = "https://earning-api.onrender.com"; 
@@ -25,7 +25,6 @@ const Admin = () => {
     const [users, setUsers] = useState([]);
     const [newUser, setNewUser] = useState({ name: '', mobile: '', email: '', password: '' });
     
-    // Edit User States
     const [editingUser, setEditingUser] = useState(null); 
     const [editPass, setEditPass] = useState("");
     const [editPin, setEditPin] = useState("");
@@ -33,7 +32,7 @@ const Admin = () => {
     const [deposits, setDeposits] = useState([]);
     const [withdraws, setWithdraws] = useState([]);
 
-    // 🔥 VIP PACKAGE STATES
+    // VIP PACKAGE STATES
     const [packages, setPackages] = useState([]);
     const [newPackage, setNewPackage] = useState({ title: '', price: '', dailyIncome: '', level: 1, image: '' });
 
@@ -61,7 +60,7 @@ const Admin = () => {
             if(activeTab === 'users') fetchUsers();
             if(activeTab === 'payment' || activeTab === 'general') fetchSettings();
             if(activeTab === 'reviews') fetchReviewTasks(); 
-            if(activeTab === 'packages') fetchPackages(); // 🔥 প্যাকেজ লোড
+            if(activeTab === 'packages') fetchPackages();
         }
     }, [navigate, activeTab]);
 
@@ -76,7 +75,7 @@ const Admin = () => {
                 setNagadNumbers(res.data.nagad || []);
                 setBinanceAddress(res.data.binance || []);
             }
-        } catch (e) { }
+        } catch (e) { console.log("Fetch error", e); }
     };
     const fetchUsers = async () => {
         try {
@@ -107,7 +106,30 @@ const Admin = () => {
 
     // --- HANDLERS ---
     
-    // 🔥 VIP PACKAGE HANDLERS
+    // 🔥 UPDATED PAYMENT HANDLERS (Fixed Refresh Issue)
+    const addNumber = async (method, number) => {
+        if(!number) return alert("Enter number/address");
+        try {
+            const res = await axios.post(`${API_BASE}/admin/add-number`, { method, number, type:'personal' });
+            if(res.data.success) {
+                alert(`${method.toUpperCase()} Added!`);
+                if(method==='bkash') setNewBkash(""); 
+                if(method==='nagad') setNewNagad(""); 
+                if(method==='binance') setNewBinance("");
+                fetchSettings(); // Refresh list immediately
+            }
+        } catch (e) { alert("Error adding number"); }
+    };
+
+    const deleteNumber = async (method, id) => {
+        if(window.confirm("Are you sure?")) {
+            try {
+                const res = await axios.post(`${API_BASE}/admin/delete-number`, { method, numberId: id });
+                if(res.data.success) fetchSettings(); 
+            } catch (e) { alert("Error deleting"); }
+        }
+    };
+
     const handleAddPackage = async () => {
         if(!newPackage.title || !newPackage.price) return alert("Title and Price required");
         try {
@@ -184,19 +206,6 @@ const Admin = () => {
         }
     };
 
-    const addNumber = async (method, number) => {
-        if(!number) return;
-        await axios.post(`${API_BASE}/admin/add-number`, { method, number, type:'personal' });
-        if(method==='bkash') setNewBkash(""); 
-        if(method==='nagad') setNewNagad(""); 
-        if(method==='binance') setNewBinance("");
-        fetchSettings();
-    };
-
-    const deleteNumber = async (method, id) => {
-        if(window.confirm("Delete?")) { await axios.post(`${API_BASE}/admin/delete-number`, { method, numberId: id }); fetchSettings(); }
-    };
-
     const updateGeneral = async () => {
         await axios.post(`${API_BASE}/admin/update-settings`, { headline, telegramLink });
         alert("Settings Updated!");
@@ -224,8 +233,10 @@ const Admin = () => {
         if(action === 'spin') body.spins = giftSpins;
         if(action === 'win') body.amount = spinWinAmount;
         if(action === 'toss') body.result = tossResult;
-        await axios.post(`${API_BASE}/admin/${url}`, body);
-        alert("Success!");
+        try {
+            await axios.post(`${API_BASE}/admin/${url}`, body);
+            alert("Success!");
+        } catch(e) { alert("Error"); }
     };
 
     const addReviewTask = async () => {
@@ -247,7 +258,6 @@ const Admin = () => {
     };
     
     const handleLogout = () => { localStorage.removeItem('adminAuth'); navigate('/admin-login'); };
-
 
     return (
         <div style={{fontFamily:'Segoe UI, sans-serif', display:'flex', height:'100vh', overflow:'hidden', background:'#f4f6f8'}}>
@@ -343,13 +353,17 @@ const Admin = () => {
                         </div>
                         <div style={{marginTop:'20px'}}>
                             {users.map(u=>(
-                                <div key={u._id} style={listItem}>
-                                    <div>
-                                        <b>{u.name}</b> ({u.mobile}) <br/> Bal: <b style={{color:'green'}}>৳{u.balance}</b> | PIN: <b>{u.withdrawPin}</b> <br/> Pass: <small>{u.password}</small> <br/> ID: <small>{u._id}</small>
+                                <div key={u._id} style={{...listItem, borderLeft:'6px solid #764ba2', background:'white'}}>
+                                    <div style={{flex:1}}>
+                                        <b>{u.name}</b> ({u.mobile}) <br/>
+                                        <div style={{marginTop:'10px', background:'#f8f9fa', padding:'10px', borderRadius:'8px', display:'inline-block', border:'1px dashed #ccc'}}>
+                                            🔑 <b>Pass:</b> <span style={{color:'blue'}}>{u.password}</span> | 🔒 <b>PIN:</b> <span style={{color:'red'}}>{u.withdrawPin}</span> | 💰 <b>Bal:</b> <span style={{color:'green'}}>৳{u.balance}</span>
+                                        </div> <br/>
+                                        <small style={{color:'#999'}}>ID: {u._id}</small>
                                     </div>
-                                    <div>
+                                    <div style={{display:'flex', flexDirection:'column', gap:'5px'}}>
                                         <button onClick={()=>startEditUser(u)} style={{...actionBtn, background:'#f39c12'}}>Edit</button>
-                                        <button onClick={()=>handleUpdateBalance(u._id,0)} style={actionBtn}>Fund</button>
+                                        <button onClick={()=>handleUpdateBalance(u._id, u.balance)} style={actionBtn}>Fund</button>
                                         <button onClick={()=>handleDeleteUser(u._id)} style={{...actionBtn, background:'red'}}>Del</button>
                                     </div>
                                 </div>
@@ -389,6 +403,60 @@ const Admin = () => {
                     </div>
                 )}
 
+                {/* --- TAB: NOTIFICATIONS --- */}
+                {activeTab === 'notifications' && (
+                    <div>
+                        <h1>Notify & Bonus</h1>
+                        <div style={cardStyle}>
+                            <h3>🔔 Send Message</h3>
+                            <textarea value={notifMessage} onChange={e=>setNotifMessage(e.target.value)} placeholder="Type message..." style={{...bigInput, height:'100px'}} />
+                            <div style={{marginTop:'15px'}}><input value={targetUserId} onChange={e=>setTargetUserId(e.target.value)} placeholder="User ID (Optional)" style={bigInput} /></div>
+                            <div style={{marginTop:'15px', display:'flex', gap:'10px'}}>
+                                <button onClick={()=>sendNotification('single')} style={{...bigBtn, background:'#0984e3'}}>Send One</button>
+                                <button onClick={()=>sendNotification('global')} style={{...bigBtn, background:'#e17055'}}>Send ALL</button>
+                            </div>
+                        </div>
+                        <div style={{...cardStyle, marginTop:'20px', borderLeft:'5px solid #8e44ad'}}>
+                            <h3 style={{color:'#8e44ad'}}>🎁 Global Money Gift</h3>
+                            <div style={{display:'flex', gap:'10px'}}>
+                                <input type="number" value={globalBonus} onChange={e=>setGlobalBonus(e.target.value)} placeholder="Amount (Tk)" style={bigInput} />
+                                <button onClick={sendGlobalBonus} style={{...bigBtn, background:'#8e44ad'}}>SEND TO EVERYONE</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* --- TAB: PAYMENT --- */}
+                {activeTab === 'payment' && (
+                    <div>
+                        <h1>Payment Settings</h1>
+                        <div style={cardStyle}>
+                            <h3 style={{color:'#e2136e'}}>Bkash Numbers</h3>
+                            <div style={{display:'flex', gap:'10px', marginBottom:'15px'}}>
+                                <input value={newBkash} onChange={e=>setNewBkash(e.target.value)} placeholder="Enter Number" style={bigInput} />
+                                <button onClick={()=>addNumber('bkash',newBkash)} style={{...bigBtn, background:'#e2136e'}}>ADD</button>
+                            </div>
+                            {bkashNumbers.map((n,i)=><div key={i} style={listItem}>{n.number} <button onClick={()=>deleteNumber('bkash',n._id)} style={delBtn}>Remove</button></div>)}
+                        </div>
+                        <div style={{...cardStyle, marginTop:'20px'}}>
+                            <h3 style={{color:'#f68c1f'}}>Nagad Numbers</h3>
+                            <div style={{display:'flex', gap:'10px', marginBottom:'15px'}}>
+                                <input value={newNagad} onChange={e=>setNewNagad(e.target.value)} placeholder="Enter Number" style={bigInput} />
+                                <button onClick={()=>addNumber('nagad',newNagad)} style={{...bigBtn, background:'#f68c1f'}}>ADD</button>
+                            </div>
+                            {nagadNumbers.map((n,i)=><div key={i} style={listItem}>{n.number} <button onClick={()=>deleteNumber('nagad',n._id)} style={delBtn}>Remove</button></div>)}
+                        </div>
+                        <div style={{...cardStyle, marginTop:'20px'}}>
+                            <h3 style={{color:'#f3ba2f'}}>Binance Wallet</h3>
+                            <div style={{display:'flex', gap:'10px', marginBottom:'15px'}}>
+                                <input value={newBinance} onChange={e=>setNewBinance(e.target.value)} placeholder="Enter Address" style={bigInput} />
+                                <button onClick={()=>addNumber('binance',newBinance)} style={{...bigBtn, background:'#f3ba2f', color:'black'}}>ADD</button>
+                            </div>
+                            {binanceAddress.map((n,i)=><div key={i} style={listItem}>{n.address} <button onClick={()=>deleteNumber('binance',n._id)} style={delBtn}>Remove</button></div>)}
+                        </div>
+                    </div>
+                )}
+
                 {/* --- TAB: GAMES --- */}
                 {activeTab === 'games' && (
                     <div>
@@ -424,37 +492,7 @@ const Admin = () => {
                     </div>
                 )}
 
-                {/* (বাকি Tab গুলো - Payment, Review, General আগের মতোই আছে) */}
-                {activeTab === 'payment' && (
-                    <div>
-                        <h1>Payment Settings</h1>
-                        <div style={cardStyle}>
-                            <h3 style={{color:'#e2136e'}}>Bkash Numbers</h3>
-                            <div style={{display:'flex', gap:'10px', marginBottom:'15px'}}>
-                                <input value={newBkash} onChange={e=>setNewBkash(e.target.value)} placeholder="Enter Number" style={bigInput} />
-                                <button onClick={()=>addNumber('bkash',newBkash)} style={{...bigBtn, background:'#e2136e'}}>ADD</button>
-                            </div>
-                            {bkashNumbers.map((n,i)=><div key={i} style={listItem}>{n.number} <button onClick={()=>deleteNumber('bkash',n._id)} style={delBtn}>Remove</button></div>)}
-                        </div>
-                        <div style={{...cardStyle, marginTop:'20px'}}>
-                            <h3 style={{color:'#f68c1f'}}>Nagad Numbers</h3>
-                            <div style={{display:'flex', gap:'10px', marginBottom:'15px'}}>
-                                <input value={newNagad} onChange={e=>setNewNagad(e.target.value)} placeholder="Enter Number" style={bigInput} />
-                                <button onClick={()=>addNumber('nagad',newNagad)} style={{...bigBtn, background:'#f68c1f'}}>ADD</button>
-                            </div>
-                            {nagadNumbers.map((n,i)=><div key={i} style={listItem}>{n.number} <button onClick={()=>deleteNumber('nagad',n._id)} style={delBtn}>Remove</button></div>)}
-                        </div>
-                        <div style={{...cardStyle, marginTop:'20px'}}>
-                            <h3 style={{color:'#f3ba2f'}}>Binance Wallet</h3>
-                            <div style={{display:'flex', gap:'10px', marginBottom:'15px'}}>
-                                <input value={newBinance} onChange={e=>setNewBinance(e.target.value)} placeholder="Enter Address" style={bigInput} />
-                                <button onClick={()=>addNumber('binance',newBinance)} style={{...bigBtn, background:'#f3ba2f', color:'black'}}>ADD</button>
-                            </div>
-                            {binanceAddress.map((n,i)=><div key={i} style={listItem}>{n.address} <button onClick={()=>deleteNumber('binance',n._id)} style={delBtn}>Remove</button></div>)}
-                        </div>
-                    </div>
-                )}
-
+                {/* --- TAB: REVIEWS --- */}
                 {activeTab === 'reviews' && (
                     <div>
                         <h1>Manage Review Tasks</h1>
@@ -477,6 +515,7 @@ const Admin = () => {
                     </div>
                 )}
 
+                {/* --- TAB: SETTINGS --- */}
                 {activeTab === 'general' && (
                     <div>
                         <h1>App Settings</h1>
@@ -505,6 +544,6 @@ const bigInput = { width: '100%', padding: '15px 20px', fontSize: '18px', border
 const bigBtn = { ...btnBase, padding: '15px 25px', fontSize: '16px', background: '#0984e3' };
 const listItem = { padding:'20px', background:'#f1f2f6', borderBottom:'1px solid #dfe6e9', display:'flex', justifyContent:'space-between', alignItems:'center', borderRadius:'8px', marginBottom:'15px' };
 const delBtn = { padding:'8px 15px', background:'#e74c3c', color:'white', border:'none', borderRadius:'5px', cursor:'pointer' };
-const actionBtn = { padding:'8px 15px', margin:'0 5px', border:'none', borderRadius:'5px', cursor:'pointer', color:'white', background:'#0984e3', fontSize:'13px' };
+const actionBtn = { padding:'8px 15px', margin:'0 5px', border:'none', borderRadius:'5px', cursor:'pointer', color:'white', background:'#0984e3', fontSize:'13px', width:'100px' };
 
 export default Admin;

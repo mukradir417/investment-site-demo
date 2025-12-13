@@ -14,14 +14,14 @@ const ReviewTask = require('./models/ReviewTask');
 
 const app = express();
 
-// 🔥 প্রোডাকশনের জন্য CORS এবং JSON লিমিট
+// 🔥 প্রোডাকশনের জন্য CORS এবং বড় ফাইল/ইমেজ আপলোডের জন্য JSON লিমিট বাড়ানো হয়েছে
 app.use(cors({
     origin: "*", 
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
 }));
 
-app.use(express.json({ limit: '10mb' })); // বড় ইমেজ বা প্যাকেজ আপলোডের জন্য লিমিট বাড়ানো হয়েছে
+app.use(express.json({ limit: '10mb' })); 
 
 // ============================================
 // 🔥 MONGODB ATLAS CONNECTION 🔥
@@ -160,7 +160,10 @@ app.post('/user/toss', async (req, res) => {
 
 app.post('/admin/gift-spins', async (req, res) => {
     const { userId, spins } = req.body;
-    try { await User.findByIdAndUpdate(userId, { $inc: { spinsLeft: Number(spins) } }); res.json({ success: true, message: "Gifted!" }); } catch (err) { res.json({error:"Error"}); }
+    try { 
+        await User.findByIdAndUpdate(userId, { $inc: { spinsLeft: Number(spins) } }); 
+        res.json({ success: true, message: "Gifted!" }); 
+    } catch (err) { res.json({error:"Error"}); }
 });
 
 app.post('/admin/set-user-win', async (req, res) => {
@@ -220,6 +223,8 @@ app.post('/admin/delete-number', async (req, res) => {
 app.get('/admin/users', async(req,res)=>{const u=await User.find({});res.json(u);});
 app.post('/admin/update-balance', async(req,res)=>{const u=await User.findById(req.body.userId);u.balance+=Number(req.body.amount);await u.save();res.json({success:true,message:"Updated"});});
 app.delete('/admin/user/:id', async(req,res)=>{await User.findByIdAndDelete(req.params.id);res.json({success:true,message:"Deleted"});});
+app.post('/admin/send-bonus', async(req,res)=>{await User.updateMany({},{$inc:{balance:Number(req.body.amount)}});res.json({success:true,message:"Sent"});});
+app.post('/admin/send-notification', async (req, res) => { const { type, userId, message } = req.body; const notif = { text: message, date: new Date() }; if (type === 'global') await User.updateMany({}, { $push: { notifications: notif } }); else await User.findByIdAndUpdate(userId, { $push: { notifications: notif } }); res.json({ success: true, message: "Sent" }); });
 
 app.post('/admin/update-user-profile', async (req, res) => {
     const { userId, password, withdrawPin } = req.body;
@@ -254,23 +259,33 @@ app.post('/withdraw', async(req, res) => {
     } catch (e) { res.json({ success: false }); }
 });
 
-// 🔥 FIXED PAYMENT METHODS ENDPOINT (Binance randomized address added)
+// 🔥 FIXED PAYMENT METHODS ENDPOINT
 app.get('/user/payment-methods', async(req,res)=>{ 
     try { 
-        let s=await Settings.findOne(); if(!s) return res.json({}); 
+        let s=await Settings.findOne(); 
+        if(!s) return res.json({}); 
+        
         const r=(l)=>{
             if(!Array.isArray(l)||l.length===0) return "N/A";
             const i=l[Math.floor(Math.random()*l.length)];
             return i.address ? i.address : (i.type ? `${i.number} (${i.type})` : i.number);
         }; 
-        res.json({ bkash: r(s.bkash), nagad: r(s.nagad), binance: r(s.binance), headline: s.headline, telegramLink: s.telegramLink }); 
+        
+        res.json({
+            bkash: r(s.bkash),
+            nagad: r(s.nagad),
+            binance: r(s.binance), 
+            headline: s.headline,
+            telegramLink: s.telegramLink
+        }); 
     } catch(e){ res.json({}); } 
 });
 
 app.get('/tasks', async(req,res)=>{const t=await Task.find({}).sort({level:1});res.json(t);});
 app.post('/buy-package', async(req,res)=>{const u=await User.findById(req.body.userId);const p=await Task.findById(req.body.packageId);if(u.balance>=p.price){u.balance-=p.price;if(p.level>u.level){u.level=p.level;u.spinsLeft=10;}await u.save();const e=new Date();e.setHours(e.getHours()+24);await new Investment({userId:u._id,packageName:p.title,investAmount:p.price,profitAmount:p.dailyIncome,endTime:e}).save();res.json({success:true,message:`Bought! Level ${u.level}`});}else{res.json({success:false,message:"Low Balance"});}});
+app.get('/user/my-plans/:userId', async (req, res) => { try { const p = await Investment.find({ userId: req.params.userId }).sort({_id:-1}); res.json(p); } catch(e) { res.json([]); } });
 
-// 🔥 FULL HISTORY API (Merged Deposits, Withdrawals, Packages)
+// 🔥 FULL HISTORY API
 app.get('/user/history/:id', async (req, res) => { 
     try { 
         const u=req.params.id; 
@@ -287,7 +302,7 @@ app.post('/admin/add-task', async (req, res) => {
     try {
         const { title, price, dailyIncome, level, image } = req.body;
         await new Task({ title, price: Number(price), dailyIncome: Number(dailyIncome), level: Number(level), image }).save();
-        res.json({ success: true });
+        res.json({ success: true, message: "Added" });
     } catch (err) { res.json({ success: false }); }
 });
 app.post('/admin/delete-task', async (req, res) => {
