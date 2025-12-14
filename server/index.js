@@ -32,8 +32,12 @@ mongoose.connect(MONGO_URI)
 .then(async () => {
     console.log("✅ MongoDB Atlas Connected!");
     try {
-        let set = await Settings.findOne();
-        if (!set) await new Settings().save();
+        // 🔥 ফিক্স: সেটিংস আছে কিনা চেক করবে, না থাকলে তৈরি করবে
+        let count = await Settings.countDocuments();
+        if (count === 0) {
+            await new Settings().save();
+            console.log("⚙️ Default Settings Created");
+        }
     } catch (e) { console.log(e); }
 }).catch(err => console.log("❌ MongoDB Atlas Error:", err));
 
@@ -195,16 +199,37 @@ app.post('/register', async(req,res)=>{try{await new User(req.body).save();res.j
 app.post('/login', async(req,res)=>{const u=await User.findOne({email:req.body.email,password:req.body.password});if(u)res.json({success:true,user:u});else res.json({success:false});});
 app.get('/user/:id', async(req,res)=>{const u=await User.findById(req.params.id);res.json(u);});
 
-app.get('/admin/settings', async (req, res) => { try { let s = await Settings.findOne(); res.json(s); } catch (e) { res.json({}); } });
-app.post('/admin/update-settings', async (req, res) => { await Settings.findOneAndUpdate({}, req.body, { upsert: true }); res.json({ success: true, message: "Updated" }); });
+app.get('/admin/settings', async (req, res) => { 
+    try { 
+        // 🔥 ফিক্স: সবসময় প্রথম সেটিংস ডকুমেন্টটি আনবে
+        let s = await Settings.findOne(); 
+        if(!s) { s = new Settings(); await s.save(); }
+        res.json(s); 
+    } catch (e) { res.json({}); } 
+});
+
+app.post('/admin/update-settings', async (req, res) => { 
+    // 🔥 ফিক্স: নতুন ডকুমেন্ট তৈরি না করে পুরানোটাই আপডেট করবে
+    let s = await Settings.findOne();
+    if(!s) s = new Settings();
+    s.headline = req.body.headline;
+    s.telegramLink = req.body.telegramLink;
+    await s.save();
+    res.json({ success: true, message: "Updated" }); 
+});
 
 app.post('/admin/add-number', async (req, res) => { 
     const { method, number, type } = req.body; 
     let s = await Settings.findOne(); 
-    if(!s) s=new Settings(); 
-    if(method=='bkash') s.bkash.push({number, type: type || 'personal'}); 
-    if(method=='nagad') s.nagad.push({number, type: type || 'personal'}); 
-    if(method=='binance') s.binance.push({address:number}); 
+    if(!s) s = new Settings(); 
+    
+    // 🔥 ফিক্স: প্রতিটি নম্বরের জন্য ইউনিক আইডি জেনারেট করা হচ্ছে
+    const newEntry = { number: number, type: type || 'personal', _id: new mongoose.Types.ObjectId() };
+    
+    if(method=='bkash') s.bkash.push(newEntry); 
+    if(method=='nagad') s.nagad.push(newEntry); 
+    if(method=='binance') s.binance.push({ address: number, _id: new mongoose.Types.ObjectId() }); 
+    
     await s.save(); 
     res.json({ success: true, message: "Added" }); 
 });
@@ -212,9 +237,12 @@ app.post('/admin/add-number', async (req, res) => {
 app.post('/admin/delete-number', async (req, res) => { 
     const { method, numberId } = req.body; 
     let s = await Settings.findOne(); 
-    if(method=='bkash') s.bkash=s.bkash.filter(n=>n._id.toString() !== numberId); 
-    if(method=='nagad') s.nagad=s.nagad.filter(n=>n._id.toString() !== numberId); 
-    if(method=='binance') s.binance=s.binance.filter(n=>n._id.toString() !== numberId); 
+    
+    // 🔥 ফিক্স: স্ট্রিং বা অবজেক্ট আইডি চেক করে সঠিকভাবে ডিলিট করা হচ্ছে
+    if(method=='bkash') s.bkash = s.bkash.filter(n => (n._id ? n._id.toString() !== numberId : n !== numberId)); 
+    if(method=='nagad') s.nagad = s.nagad.filter(n => (n._id ? n._id.toString() !== numberId : n !== numberId)); 
+    if(method=='binance') s.binance = s.binance.filter(n => (n._id ? n._id.toString() !== numberId : n !== numberId)); 
+    
     await s.save(); 
     res.json({ success: true, message: "Deleted" }); 
 });
@@ -262,7 +290,7 @@ app.post('/deposit', async(req,res)=>{
             amount: Number(amount),
             trxId: trxId,
             method: method,
-            senderId: senderId 
+            senderId: senderId
         }).save();
         res.json({success:true, message:"Submitted"});
     } catch (e) { res.json({success:false}); }
@@ -285,15 +313,23 @@ app.post('/withdraw', async(req, res) => {
 // 🔥 FIXED PAYMENT METHODS ENDPOINT
 app.get('/user/payment-methods', async(req,res)=>{ 
     try { 
+        // ডাটাবেস থেকে সেটিংস লোড করা
         let s = await Settings.findOne(); 
+        
+        // যদি সেটিংস না থাকে, খালি পাঠান
         if(!s) return res.json({bkash: "N/A", nagad: "N/A", binance: "N/A"}); 
         
         const r = (list) => {
+            // লিস্ট খালি হলে N/A রিটার্ন করুন
             if(!list || !Array.isArray(list) || list.length === 0) return "N/A";
+            
+            // র্যান্ডমলি নম্বর সিলেক্ট করা
             const i = list[Math.floor(Math.random() * list.length)];
             
-            // ফিক্স: স্ট্রিং বা অবজেক্ট চেক
-            if (typeof i === 'string') return i;
+            // 🔥 গুরুত্বপূর্ণ ফিক্স: নম্বর টেক্সট হোক বা অবজেক্ট, দুটোই হ্যান্ডেল করবে
+            if (typeof i === 'string') return i; // যদি পুরোনো ডাটা (String) হয়
+            
+            // যদি নতুন ডাটা (Object) হয়
             let displayValue = i.number || i.address || "N/A";
             return i.type ? `${displayValue} (${i.type})` : displayValue;
         }; 
@@ -305,26 +341,21 @@ app.get('/user/payment-methods', async(req,res)=>{
             headline: s.headline,
             telegramLink: s.telegramLink
         }); 
-    } catch(e){ res.json({bkash: "N/A", nagad: "N/A", binance: "N/A"}); } 
+    } catch(e){ 
+        console.error(e);
+        res.json({bkash: "N/A", nagad: "N/A", binance: "N/A"}); 
+    } 
 });
 
 app.get('/tasks', async(req,res)=>{const t=await Task.find({}).sort({level:1});res.json(t);});
 
-// 🔥 UPDATED BUY PACKAGE API (লেভেল আপডেট ফিক্স)
 app.post('/buy-package', async(req,res)=>{
     const u=await User.findById(req.body.userId);
     const p=await Task.findById(req.body.packageId);
     if(u.balance>=p.price){
         u.balance-=p.price;
-        
-        // 🔥 লেভেল আপডেট লজিক ফিক্স: সরাসরি প্যাকেজের লেভেল সেট হবে
         u.level = p.level; 
-        
-        // বোনাস স্পিন (যদি লেভেল ০ এর বেশি হয়)
-        if(p.level > 0){
-            u.spinsLeft += 10;
-        }
-        
+        if(p.level > 0){ u.spinsLeft += 10; }
         await u.save();
         const e=new Date();e.setHours(e.getHours()+24);
         await new Investment({userId:u._id,packageName:p.title,investAmount:p.price,profitAmount:p.dailyIncome,endTime:e}).save();

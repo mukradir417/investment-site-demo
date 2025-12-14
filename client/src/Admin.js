@@ -107,7 +107,6 @@ const Admin = () => {
 
     // --- HANDLERS ---
     
-    // 🔥 VIP PACKAGE HANDLERS
     const handleAddPackage = async () => {
         if(!newPackage.title || !newPackage.price) return alert("Title and Price required");
         try {
@@ -184,17 +183,28 @@ const Admin = () => {
         }
     };
 
+    // 🔥 UPDATED PAYMENT HANDLERS (Improved Logic)
     const addNumber = async (method, number) => {
-        if(!number) return;
-        await axios.post(`${API_BASE}/admin/add-number`, { method, number, type:'personal' });
-        if(method==='bkash') setNewBkash(""); 
-        if(method==='nagad') setNewNagad(""); 
-        if(method==='binance') setNewBinance("");
-        fetchSettings();
+        if(!number) return alert("Enter number/address");
+        try {
+            const res = await axios.post(`${API_BASE}/admin/add-number`, { method, number, type:'personal' });
+            if(res.data.success) {
+                alert("Successfully Added!");
+                if(method==='bkash') setNewBkash(""); 
+                if(method==='nagad') setNewNagad(""); 
+                if(method==='binance') setNewBinance("");
+                fetchSettings();
+            }
+        } catch(e) { alert("Error adding number"); }
     };
 
     const deleteNumber = async (method, id) => {
-        if(window.confirm("Delete?")) { await axios.post(`${API_BASE}/admin/delete-number`, { method, numberId: id }); fetchSettings(); }
+        if(window.confirm("Delete this number?")) {
+            try {
+                const res = await axios.post(`${API_BASE}/admin/delete-number`, { method, numberId: id });
+                if(res.data.success) fetchSettings();
+            } catch(e) { alert("Error deleting"); }
+        }
     };
 
     const updateGeneral = async () => {
@@ -280,7 +290,6 @@ const Admin = () => {
                             <div style={{display:'flex', gap:'10px', flexWrap:'wrap'}}>
                                 <input placeholder="Title (VIP 1)" value={newPackage.title} onChange={e=>setNewPackage({...newPackage, title:e.target.value})} style={bigInput} />
                                 
-                                {/* 🔥 লেভেল ড্রপডাউন (0 থেকে 20) */}
                                 <div style={{width:'100%'}}>
                                     <label style={{fontWeight:'bold', color:'#555'}}>Select Level:</label>
                                     <select 
@@ -388,7 +397,6 @@ const Admin = () => {
                                     <div>
                                         <b>{d.userName}</b> sent <b style={{color:'green'}}>৳{d.amount}</b> via {d.method} <br/>
                                         <small>Trx: {d.trxId}</small> <br/>
-                                        {/* 🔥 নতুন অ্যাড করা লাইন: ইউজারের পাঠানো নম্বর বা আইডি */}
                                         <div style={{marginTop:'5px', background:'#eee', padding:'5px', borderRadius:'5px', fontSize:'13px'}}>
                                             📩 From: <b>{d.senderId || "Not Provided"}</b>
                                         </div>
@@ -438,33 +446,79 @@ const Admin = () => {
                     </div>
                 )}
 
-                {/* --- TAB: PAYMENT --- */}
+                {/* --- TAB: PAYMENT (New Design) --- */}
                 {activeTab === 'payment' && (
                     <div>
-                        <h1>Payment Settings</h1>
-                        <div style={cardStyle}>
-                            <h3 style={{color:'#e2136e'}}>Bkash Numbers</h3>
-                            <div style={{display:'flex', gap:'10px', marginBottom:'15px'}}>
-                                <input value={newBkash} onChange={e=>setNewBkash(e.target.value)} placeholder="Enter Number" style={bigInput} />
-                                <button onClick={()=>addNumber('bkash',newBkash)} style={{...bigBtn, background:'#e2136e'}}>ADD</button>
+                        <h1 style={{color: '#2c3e50', borderBottom: '2px solid #3498db', paddingBottom: '10px'}}>💳 Payment Settings</h1>
+                        
+                        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginTop: '20px'}}>
+                            
+                            {/* BKASH CARD */}
+                            <div style={paymentCardStyle}>
+                                <div style={{background: '#e2136e', padding: '15px', borderRadius: '10px 10px 0 0', color: 'white', display:'flex', justifyContent:'space-between'}}>
+                                    <h3 style={{margin:0}}>🚀 Bkash</h3>
+                                    <span>{bkashNumbers.length} Active</span>
+                                </div>
+                                <div style={{padding: '20px'}}>
+                                    <div style={{display:'flex', gap:'5px', marginBottom:'15px'}}>
+                                        <input value={newBkash} onChange={e=>setNewBkash(e.target.value)} placeholder="017xxxxxxxx" style={modernInput} />
+                                        <button onClick={()=>addNumber('bkash',newBkash)} style={addBtn}>+</button>
+                                    </div>
+                                    <div style={listContainer}>
+                                        {bkashNumbers.map((n, i) => (
+                                            <div key={n._id || i} style={paymentItem}>
+                                                <span style={{fontWeight:'bold', color:'#333'}}>{n.number}</span>
+                                                <button onClick={()=>deleteNumber('bkash', n._id)} style={trashBtn}>🗑️</button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
-                            {bkashNumbers.map((n,i)=><div key={i} style={listItem}>{n.number} <button onClick={()=>deleteNumber('bkash',n._id)} style={delBtn}>Remove</button></div>)}
-                        </div>
-                        <div style={{...cardStyle, marginTop:'20px'}}>
-                            <h3 style={{color:'#f68c1f'}}>Nagad Numbers</h3>
-                            <div style={{display:'flex', gap:'10px', marginBottom:'15px'}}>
-                                <input value={newNagad} onChange={e=>setNewNagad(e.target.value)} placeholder="Enter Number" style={bigInput} />
-                                <button onClick={()=>addNumber('nagad',newNagad)} style={{...bigBtn, background:'#f68c1f'}}>ADD</button>
+
+                            {/* NAGAD CARD */}
+                            <div style={paymentCardStyle}>
+                                <div style={{background: '#f68c1f', padding: '15px', borderRadius: '10px 10px 0 0', color: 'white', display:'flex', justifyContent:'space-between'}}>
+                                    <h3 style={{margin:0}}>🔥 Nagad</h3>
+                                    <span>{nagadNumbers.length} Active</span>
+                                </div>
+                                <div style={{padding: '20px'}}>
+                                    <div style={{display:'flex', gap:'5px', marginBottom:'15px'}}>
+                                        <input value={newNagad} onChange={e=>setNewNagad(e.target.value)} placeholder="018xxxxxxxx" style={modernInput} />
+                                        <button onClick={()=>addNumber('nagad',newNagad)} style={addBtn}>+</button>
+                                    </div>
+                                    <div style={listContainer}>
+                                        {nagadNumbers.map((n, i) => (
+                                            <div key={n._id || i} style={paymentItem}>
+                                                <span style={{fontWeight:'bold', color:'#333'}}>{n.number}</span>
+                                                <button onClick={()=>deleteNumber('nagad', n._id)} style={trashBtn}>🗑️</button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
-                            {nagadNumbers.map((n,i)=><div key={i} style={listItem}>{n.number} <button onClick={()=>deleteNumber('nagad',n._id)} style={delBtn}>Remove</button></div>)}
-                        </div>
-                        <div style={{...cardStyle, marginTop:'20px'}}>
-                            <h3 style={{color:'#f3ba2f'}}>Binance Wallet</h3>
-                            <div style={{display:'flex', gap:'10px', marginBottom:'15px'}}>
-                                <input value={newBinance} onChange={e=>setNewBinance(e.target.value)} placeholder="Enter Address" style={bigInput} />
-                                <button onClick={()=>addNumber('binance',newBinance)} style={{...bigBtn, background:'#f3ba2f', color:'black'}}>ADD</button>
+
+                            {/* BINANCE CARD */}
+                            <div style={paymentCardStyle}>
+                                <div style={{background: '#f3ba2f', padding: '15px', borderRadius: '10px 10px 0 0', color: 'black', display:'flex', justifyContent:'space-between'}}>
+                                    <h3 style={{margin:0}}>🔶 Binance</h3>
+                                    <span>{binanceAddress.length} Active</span>
+                                </div>
+                                <div style={{padding: '20px'}}>
+                                    <div style={{display:'flex', gap:'5px', marginBottom:'15px'}}>
+                                        <input value={newBinance} onChange={e=>setNewBinance(e.target.value)} placeholder="Wallet Address" style={modernInput} />
+                                        <button onClick={()=>addNumber('binance',newBinance)} style={{...addBtn, background:'#333'}}>Add</button>
+                                    </div>
+                                    <div style={listContainer}>
+                                        {binanceAddress.map((n, i) => (
+                                            <div key={n._id || i} style={paymentItem}>
+                                                <span style={{fontWeight:'bold', color:'#333', fontSize:'12px', wordBreak:'break-all'}}>{n.address}</span>
+                                                <button onClick={()=>deleteNumber('binance', n._id)} style={trashBtn}>🗑️</button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
-                            {binanceAddress.map((n,i)=><div key={i} style={listItem}>{n.address} <button onClick={()=>deleteNumber('binance',n._id)} style={delBtn}>Remove</button></div>)}
+
                         </div>
                     </div>
                 )}
@@ -556,5 +610,13 @@ const bigBtn = { ...btnBase, padding: '15px 25px', fontSize: '16px', background:
 const listItem = { padding:'20px', background:'#f1f2f6', borderBottom:'1px solid #dfe6e9', display:'flex', justifyContent:'space-between', alignItems:'center', borderRadius:'8px', marginBottom:'15px' };
 const delBtn = { padding:'8px 15px', background:'#e74c3c', color:'white', border:'none', borderRadius:'5px', cursor:'pointer' };
 const actionBtn = { padding:'8px 15px', margin:'0 5px', border:'none', borderRadius:'5px', cursor:'pointer', color:'white', background:'#0984e3', fontSize:'13px', width:'100px' };
+
+// 🔥 NEW PAYMENT STYLES
+const paymentCardStyle = { background: 'white', borderRadius: '10px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', overflow: 'hidden' };
+const modernInput = { flex: 1, padding: '10px', border: '1px solid #ddd', borderRadius: '5px', outline: 'none' };
+const addBtn = { padding: '10px 15px', background: '#27ae60', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' };
+const listContainer = { maxHeight: '250px', overflowY: 'auto' };
+const paymentItem = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8f9fa', padding: '10px', borderRadius: '5px', marginBottom: '8px', borderLeft: '4px solid #bdc3c7' };
+const trashBtn = { background: '#ff7675', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' };
 
 export default Admin;
