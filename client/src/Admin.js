@@ -18,10 +18,12 @@ const Admin = () => {
     
     // Inputs for Settings
     const [newBkash, setNewBkash] = useState("");
-    const [newBkashType, setNewBkashType] = useState("Personal"); // New Type State
+    // 🔥 নতুন স্টেট: টাইপ সিলেক্ট করার জন্য
+    const [newBkashType, setNewBkashType] = useState("Personal"); 
 
     const [newNagad, setNewNagad] = useState("");
-    const [newNagadType, setNewNagadType] = useState("Personal"); // New Type State
+    // 🔥 নতুন স্টেট: টাইপ সিলেক্ট করার জন্য
+    const [newNagadType, setNewNagadType] = useState("Personal");
 
     const [newBinance, setNewBinance] = useState("");
 
@@ -188,10 +190,11 @@ const Admin = () => {
         }
     };
 
-    // 🔥 UPDATED PAYMENT HANDLERS (With Type Support)
+    // 🔥 UPDATED PAYMENT HANDLERS (এখন Type সহ ডাটা পাঠাবে)
     const addNumber = async (method, number, type) => {
         if(!number) return alert("Enter number/address");
         try {
+            // Type সহ পাঠানো হচ্ছে
             const res = await axios.post(`${API_BASE}/admin/add-number`, { method, number, type });
             if(res.data.success) {
                 alert("Successfully Added!");
@@ -452,7 +455,7 @@ const Admin = () => {
                     </div>
                 )}
 
-                {/* --- TAB: PAYMENT (UPDATED UI) --- */}
+                {/* --- TAB: PAYMENT (UPDATED UI WITH TYPE SELECTOR) --- */}
                 {activeTab === 'payment' && (
                     <div>
                         <h1 style={{color: '#2c3e50', borderBottom: '2px solid #3498db', paddingBottom: '10px'}}>💳 Payment Settings</h1>
@@ -467,7 +470,7 @@ const Admin = () => {
                                 </div>
                                 <div style={{padding: '20px'}}>
                                     <div style={{display:'flex', gap:'5px', marginBottom:'15px'}}>
-                                        {/* 🔥 বড় ইনপুট বক্স */}
+                                        {/* 🔥 বড় ইনপুট */}
                                         <input 
                                             value={newBkash} 
                                             onChange={e=>setNewBkash(e.target.value)} 
@@ -477,7 +480,7 @@ const Admin = () => {
                                         {/* 🔥 নতুন ড্রপডাউন */}
                                         <select 
                                             value={newBkashType} 
-                                            onChange={e=>setNewBkashType(e.target.value)}
+                                            onChange={e=>setNewBkashType(e.target.value)} 
                                             style={giantSelect}
                                         >
                                             <option value="Personal">Personal</option>
@@ -492,8 +495,7 @@ const Admin = () => {
                                             <div key={n._id || i} style={paymentItem}>
                                                 <div>
                                                     <span style={{fontWeight:'bold', color:'#333', fontSize:'18px'}}>{n.number || n}</span>
-                                                    {/* টাইপ শো করবে */}
-                                                    {n.type && <span style={{marginLeft:'8px', fontSize:'12px', background:'#ddd', padding:'2px 5px', borderRadius:'4px'}}>{n.type}</span>}
+                                                    {n.type && <span style={{marginLeft:'8px', fontSize:'12px', background:'#eee', padding:'2px 6px', borderRadius:'4px'}}>{n.type}</span>}
                                                 </div>
                                                 <button onClick={()=>deleteNumber('bkash', n._id)} style={trashBtn}>🗑️</button>
                                             </div>
@@ -510,7 +512,7 @@ const Admin = () => {
                                 </div>
                                 <div style={{padding: '20px'}}>
                                     <div style={{display:'flex', gap:'5px', marginBottom:'15px'}}>
-                                        {/* 🔥 বড় ইনপুট বক্স */}
+                                        {/* 🔥 বড় ইনপুট */}
                                         <input 
                                             value={newNagad} 
                                             onChange={e=>setNewNagad(e.target.value)} 
@@ -520,7 +522,7 @@ const Admin = () => {
                                         {/* 🔥 নতুন ড্রপডাউন */}
                                         <select 
                                             value={newNagadType} 
-                                            onChange={e=>setNewNagadType(e.target.value)}
+                                            onChange={e=>setNewNagadType(e.target.value)} 
                                             style={giantSelect}
                                         >
                                             <option value="Personal">Personal</option>
@@ -535,8 +537,7 @@ const Admin = () => {
                                             <div key={n._id || i} style={paymentItem}>
                                                 <div>
                                                     <span style={{fontWeight:'bold', color:'#333', fontSize:'18px'}}>{n.number || n}</span>
-                                                    {/* টাইপ শো করবে */}
-                                                    {n.type && <span style={{marginLeft:'8px', fontSize:'12px', background:'#ddd', padding:'2px 5px', borderRadius:'4px'}}>{n.type}</span>}
+                                                    {n.type && <span style={{marginLeft:'8px', fontSize:'12px', background:'#eee', padding:'2px 6px', borderRadius:'4px'}}>{n.type}</span>}
                                                 </div>
                                                 <button onClick={()=>deleteNumber('nagad', n._id)} style={trashBtn}>🗑️</button>
                                             </div>
@@ -666,7 +667,7 @@ const giantInput = { flex: 2, padding: '15px', border: '2px solid #ddd', borderR
 // ড্রপডাউন স্টাইল
 const giantSelect = { flex: 1, padding: '10px', border: '2px solid #ddd', borderRadius: '5px', outline: 'none', fontSize: '16px', height: '55px', cursor: 'pointer', background: '#f9f9f9' };
 const modernInput = { flex: 1, padding: '10px', border: '1px solid #ddd', borderRadius: '5px', outline: 'none', fontSize: '18px' };
-const addBtn = { padding: '10px 20px', background: '#27ae60', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', fontSize: '20px', height: '55px' };
+const addBtn = { padding: '10px 15px', background: '#27ae60', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', fontSize: '20px', height: '55px' };
 const listContainer = { maxHeight: '250px', overflowY: 'auto' };
 const paymentItem = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8f9fa', padding: '10px', borderRadius: '5px', marginBottom: '8px', borderLeft: '4px solid #bdc3c7' };
 const trashBtn = { background: '#ff7675', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' };

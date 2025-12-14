@@ -99,7 +99,7 @@ const Deposit = () => {
                              selectedMethod === 'nagad' ? methods.nagad : 
                              methods.binance}
                         </h2>
-                        <small style={{color:'red', display:'block', marginTop:'5px', fontWeight:'bold'}}>* Only Send Money / Cash Out</small>
+                        <small style={{color:'red', display:'block', marginTop:'5px', fontWeight:'bold'}}>*সঠিক পরিমাণ টাকা প্রদান করুন। ✅</small>
                     </div>
                 </div>
 
