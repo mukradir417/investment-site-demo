@@ -6,7 +6,7 @@ const Admin = () => {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('requests'); 
 
-    // 🔥 প্রোডাকশন ব্যাকএন্ড ইউআরএল (Render URL)
+    // 🔥 PROD URL
     const API_BASE = "https://earning-api.onrender.com"; 
 
     // --- STATES ---
@@ -184,7 +184,7 @@ const Admin = () => {
         }
     };
 
-    // 🔥 UPDATED PAYMENT HANDLERS (Fixed Delete Issue)
+    // 🔥 UPDATED PAYMENT HANDLERS (With Clean Delete Logic)
     const addNumber = async (method, number) => {
         if(!number) return alert("Enter number/address");
         try {
@@ -200,10 +200,12 @@ const Admin = () => {
     };
 
     const deleteNumber = async (method, id) => {
+        // Here id can be string or objectId, backend handles both now
         if(window.confirm("Delete this number?")) {
             try {
                 const res = await axios.post(`${API_BASE}/admin/delete-number`, { method, numberId: id });
                 if(res.data.success) fetchSettings();
+                else alert("Delete Failed");
             } catch(e) { alert("Error deleting"); }
         }
     };
@@ -468,8 +470,8 @@ const Admin = () => {
                                     <div style={listContainer}>
                                         {bkashNumbers.map((n, i) => (
                                             <div key={n._id || i} style={paymentItem}>
-                                                <span style={{fontWeight:'bold', color:'#333'}}>{n.number}</span>
-                                                <button onClick={()=>deleteNumber('bkash', n._id)} style={trashBtn}>🗑️</button>
+                                                <span style={{fontWeight:'bold', color:'#333'}}>{n.number || n}</span>
+                                                <button onClick={()=>deleteNumber('bkash', n._id || n)} style={trashBtn}>🗑️</button>
                                             </div>
                                         ))}
                                     </div>
@@ -490,8 +492,8 @@ const Admin = () => {
                                     <div style={listContainer}>
                                         {nagadNumbers.map((n, i) => (
                                             <div key={n._id || i} style={paymentItem}>
-                                                <span style={{fontWeight:'bold', color:'#333'}}>{n.number}</span>
-                                                <button onClick={()=>deleteNumber('nagad', n._id)} style={trashBtn}>🗑️</button>
+                                                <span style={{fontWeight:'bold', color:'#333'}}>{n.number || n}</span>
+                                                <button onClick={()=>deleteNumber('nagad', n._id || n)} style={trashBtn}>🗑️</button>
                                             </div>
                                         ))}
                                     </div>
@@ -512,8 +514,8 @@ const Admin = () => {
                                     <div style={listContainer}>
                                         {binanceAddress.map((n, i) => (
                                             <div key={n._id || i} style={paymentItem}>
-                                                <span style={{fontWeight:'bold', color:'#333', fontSize:'12px', wordBreak:'break-all'}}>{n.address}</span>
-                                                <button onClick={()=>deleteNumber('binance', n._id)} style={trashBtn}>🗑️</button>
+                                                <span style={{fontWeight:'bold', color:'#333', fontSize:'12px', wordBreak:'break-all'}}>{n.address || n}</span>
+                                                <button onClick={()=>deleteNumber('binance', n._id || n)} style={trashBtn}>🗑️</button>
                                             </div>
                                         ))}
                                     </div>

@@ -1,126 +1,101 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
 
-function Deposit() {
-    const [method, setMethod] = useState('bkash');
+const Deposit = () => {
+    // পেমেন্ট মেথড লোড করার স্টেট
+    const [methods, setMethods] = useState({ bkash: "Loading...", nagad: "Loading...", binance: "Loading..." });
+    
+    // ফর্ম ডাটা স্টেট
     const [amount, setAmount] = useState('');
     const [trxId, setTrxId] = useState('');
-    const [senderId, setSenderId] = useState(''); // 🔥 নতুন স্টেট: বিকাশ/নগদ নম্বর বা বিন্যান্স আইডি
-    const [numbers, setNumbers] = useState({ bkash: '', nagad: '', binance: '', headline: '' });
-    const navigate = useNavigate();
-    const userId = localStorage.getItem('userId');
+    const [sender, setSender] = useState('');
+    const [selectedMethod, setSelectedMethod] = useState('bkash'); // ডিফল্ট সিলেক্ট
 
+    // ইউজারের ডাটা (লোকাল স্টোরেজ থেকে)
+    const userId = localStorage.getItem("userId"); 
     const API_BASE = "https://earning-api.onrender.com"; 
 
+    // ১. পেমেন্ট নম্বর লোড করা (আপনার সার্ভার ফিক্স অনুযায়ী)
     useEffect(() => {
-        if (!userId) {
-            navigate('/');
-            return;
-        }
-        
-        const fetchMethods = async () => {
-            try {
-                const res = await axios.get(`${API_BASE}/user/payment-methods`);
-                setNumbers(res.data);
-            } catch (err) {
-                console.error("Error loading payment methods:", err);
+        axios.get(`${API_BASE}/user/payment-methods`)
+            .then(res => setMethods(res.data))
+            .catch(() => setMethods({ bkash: "N/A", nagad: "N/A", binance: "N/A" }));
+    }, []);
+
+    // ২. ডিপোজিট রিকোয়েস্ট সাবমিট করা
+    const handleSubmit = async () => {
+        if (!amount || !trxId || !sender) return alert("Please fill all fields!");
+        if (amount < 300) return alert("Minimum deposit 300 Tk");
+
+        try {
+            const res = await axios.post(`${API_BASE}/deposit`, {
+                userId,
+                amount,
+                trxId,
+                method: selectedMethod,
+                senderId: sender
+            });
+
+            if (res.data.success) {
+                alert("Deposit Submitted! Wait for approval.");
+                setAmount('');
+                setTrxId('');
+                setSender('');
+            } else {
+                alert("Failed to submit.");
             }
-        };
-        fetchMethods();
-    }, [userId, navigate, API_BASE]);
-
-    const handleCopy = (text) => {
-        if (!text || text === 'N/A') return;
-        navigator.clipboard.writeText(text.split(' ')[0]); 
-        alert("Copied to clipboard!");
+        } catch (error) {
+            alert("Server Error. Try again.");
+        }
     };
-
-    const submitDeposit = () => {
-        if (!amount || !trxId || !senderId) return alert("Please fill all fields, including your Sender ID/Number");
-        
-        axios.post(`${API_BASE}/deposit`, { 
-            userId, 
-            amount: Number(amount), 
-            trxId, 
-            method,
-            senderId // 🔥 ব্যাকএন্ডে পাঠানো হচ্ছে
-        })
-        .then(res => { 
-            alert(res.data.message); 
-            if (res.data.success) navigate('/dashboard'); 
-        })
-        .catch(() => alert("Connection Error! Please try again."));
-    };
-
-    const currentNumber = numbers[method] || "N/A";
 
     return (
-        <div className="container" style={{padding:'20px', maxWidth:'500px', margin:'0 auto', fontFamily:'sans-serif'}}>
-            <h2 style={{textAlign:'center', color:'#2e7d32'}}>Add Money</h2>
-
-            <div style={{display:'flex', gap:'10px', marginBottom:'20px'}}>
-                <button onClick={()=>setMethod('bkash')} style={{flex:1, padding:'10px', background:method==='bkash'?'#e2136e':'#ddd', color:method==='bkash'?'white':'black', border:'none', borderRadius:'5px', cursor:'pointer', fontWeight:'bold'}}>Bkash</button>
-                <button onClick={()=>setMethod('nagad')} style={{flex:1, padding:'10px', background:method==='nagad'?'#f44336':'#ddd', color:method==='nagad'?'white':'black', border:'none', borderRadius:'5px', cursor:'pointer', fontWeight:'bold'}}>Nagad</button>
-                <button onClick={()=>setMethod('binance')} style={{flex:1, padding:'10px', background:method==='binance'?'#fcd535':'#ddd', color:'black', border:'none', borderRadius:'5px', cursor:'pointer', fontWeight:'bold'}}>Binance</button>
-            </div>
-
-            <div style={{background:'#f9f9f9', padding:'20px', textAlign:'center', borderRadius:'10px', border:'1px solid #ddd', boxShadow:'0 2px 5px rgba(0,0,0,0.05)'}}>
-                <p style={{margin:0, fontSize:'14px', color:'#666'}}>Send Money To ({method.toUpperCase()}):</p>
-                <h3 style={{margin:'10px 0', color:'#333', wordBreak:'break-all'}}>{currentNumber}</h3>
-                {currentNumber !== "N/A" && (
-                    <button onClick={()=>handleCopy(currentNumber)} style={{background:'#333', color:'white', padding:'5px 15px', borderRadius:'20px', border:'none', cursor:'pointer'}}>Copy</button>
-                )}
-            </div>
-
-            <div style={{marginTop:'20px'}}>
-                <label style={{fontSize:'14px', color:'#555'}}>Deposit Amount:</label>
-                <input type="number" placeholder="Enter Amount" value={amount} onChange={e=>setAmount(e.target.value)} style={inputStyle} />
-                
-                {/* 🔥 ডায়নামিক ইনপুট বক্স: মেথড অনুযায়ী নাম পরিবর্তন হবে */}
-                <label style={{fontSize:'14px', color:'#555'}}>
-                    {method === 'binance' ? 'Your Binance ID:' : `Your ${method.charAt(0).toUpperCase() + method.slice(1)} Number:`}
-                </label>
-                <input 
-                    placeholder={method === 'binance' ? "Enter Binance ID" : "Enter Sender Number"} 
-                    value={senderId} 
-                    onChange={e=>setSenderId(e.target.value)} 
-                    style={inputStyle} 
-                />
-
-                <label style={{fontSize:'14px', color:'#555'}}>Transaction ID:</label>
-                <input placeholder="Enter TrxID" value={trxId} onChange={e=>setTrxId(e.target.value)} style={inputStyle} />
-                
-                <button onClick={submitDeposit} style={btnConfirm}>Confirm Deposit</button>
-            </div>
+        <div style={{padding:'20px', maxWidth:'500px', margin:'auto', fontFamily:'sans-serif'}}>
+            <h2 style={{textAlign:'center', color:'#333'}}>Add Money</h2>
             
-            <button onClick={()=>navigate('/dashboard')} style={{width:'100%', marginTop:'10px', background:'transparent', border:'none', cursor:'pointer', color:'#666'}}>Cancel</button>
+            {/* পেমেন্ট মেথড বাটন */}
+            <div style={{display:'flex', justifyContent:'center', gap:'10px', marginBottom:'20px'}}>
+                <button onClick={()=>setSelectedMethod('bkash')} style={selectedMethod==='bkash' ? activeBtn : inactiveBtn}>Bkash</button>
+                <button onClick={()=>setSelectedMethod('nagad')} style={selectedMethod==='nagad' ? activeBtn : inactiveBtn}>Nagad</button>
+                <button onClick={()=>setSelectedMethod('binance')} style={selectedMethod==='binance' ? activeBtn : inactiveBtn}>Binance</button>
+            </div>
+
+            {/* নম্বর ডিসপ্লে কার্ড (সার্ভার থেকে আসা ডাটা) */}
+            <div style={cardStyle}>
+                <h4 style={{margin:'0 0 10px 0', color:'#555'}}>Send Money To ({selectedMethod.toUpperCase()}):</h4>
+                <div style={{background:'#f3f4f6', padding:'15px', borderRadius:'8px', textAlign:'center', border:'1px dashed #333'}}>
+                    <h2 style={{margin:0, color:'#e2136e', wordBreak:'break-all'}}>
+                        {selectedMethod === 'bkash' ? methods.bkash : 
+                         selectedMethod === 'nagad' ? methods.nagad : 
+                         methods.binance}
+                    </h2>
+                    <small style={{color:'red'}}>* Only Send Money / Cash Out</small>
+                </div>
+            </div>
+
+            {/* ডিপোজিট ফর্ম */}
+            <div style={{marginTop:'20px'}}>
+                <label style={labelStyle}>Amount (Min 300):</label>
+                <input type="number" placeholder="Enter amount" value={amount} onChange={e=>setAmount(e.target.value)} style={inputStyle} />
+
+                <label style={labelStyle}>Sender Number / ID:</label>
+                <input type="text" placeholder="Your number" value={sender} onChange={e=>setSender(e.target.value)} style={inputStyle} />
+
+                <label style={labelStyle}>Transaction ID:</label>
+                <input type="text" placeholder="TrxID (Copy & Paste)" value={trxId} onChange={e=>setTrxId(e.target.value)} style={inputStyle} />
+
+                <button onClick={handleSubmit} style={submitBtn}>Confirm Deposit</button>
+            </div>
         </div>
     );
-}
-
-const inputStyle = {
-    width:'100%', 
-    padding:'12px', 
-    marginTop:'5px',
-    marginBottom:'15px', 
-    border:'1px solid #ddd', 
-    borderRadius:'8px', 
-    boxSizing:'border-box',
-    fontSize:'16px'
 };
 
-const btnConfirm = {
-    width:'100%',
-    padding:'12px', 
-    background:'#2e7d32', 
-    color:'white', 
-    border:'none', 
-    borderRadius:'8px', 
-    fontSize:'16px', 
-    fontWeight:'bold', 
-    cursor:'pointer',
-    boxShadow:'0 4px 6px rgba(0,0,0,0.1)'
-};
+// --- CSS Styles ---
+const activeBtn = { padding:'10px 20px', background:'#27ae60', color:'white', border:'none', borderRadius:'5px', cursor:'pointer', fontWeight:'bold' };
+const inactiveBtn = { padding:'10px 20px', background:'#ddd', color:'black', border:'none', borderRadius:'5px', cursor:'pointer' };
+const cardStyle = { background:'white', padding:'20px', borderRadius:'10px', boxShadow:'0 2px 10px rgba(0,0,0,0.1)' };
+const inputStyle = { width:'100%', padding:'12px', marginTop:'5px', marginBottom:'15px', borderRadius:'5px', border:'1px solid #ccc', boxSizing:'border-box', fontSize:'16px' };
+const labelStyle = { fontWeight:'bold', color:'#333', display:'block' };
+const submitBtn = { width:'100%', padding:'15px', background:'#2c3e50', color:'white', border:'none', borderRadius:'8px', fontSize:'18px', cursor:'pointer', fontWeight:'bold' };
 
 export default Deposit;

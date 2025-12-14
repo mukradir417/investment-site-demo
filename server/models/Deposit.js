@@ -4,9 +4,12 @@ const DepositSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     userName: { type: String },
     method: { type: String, required: true }, // bkash, nagad, binance
-    senderId: { type: String, required: true }, // 🔥 ইউজারের পাঠানো নম্বর বা বিন্যান্স আইডি
-    trxId: { type: String, required: true }, // ট্রানজেকশন আইডি
     amount: { type: Number, required: true },
+    
+    // 🔥 এই দুটি ফিল্ড খুবই জরুরি (নতুন আপডেটের জন্য)
+    senderId: { type: String, required: true }, // ইউজার যে নম্বর থেকে টাকা পাঠিয়েছে
+    trxId: { type: String, required: true },    // ট্রানজেকশন আইডি
+
     status: { type: String, default: 'pending' },
     date: { type: Date, default: Date.now }
 });
