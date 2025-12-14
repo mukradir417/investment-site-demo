@@ -470,8 +470,8 @@ const Admin = () => {
                                     <div style={listContainer}>
                                         {bkashNumbers.map((n, i) => (
                                             <div key={n._id || i} style={paymentItem}>
-                                                <span style={{fontWeight:'bold', color:'#333'}}>{n.number || n}</span>
-                                                <button onClick={()=>deleteNumber('bkash', n._id || n)} style={trashBtn}>🗑️</button>
+                                                <span style={{fontWeight:'bold', color:'#333', fontSize:'18px'}}>{n.number || n}</span>
+                                                <button onClick={()=>deleteNumber('bkash', n._id)} style={trashBtn}>🗑️</button>
                                             </div>
                                         ))}
                                     </div>
@@ -492,8 +492,8 @@ const Admin = () => {
                                     <div style={listContainer}>
                                         {nagadNumbers.map((n, i) => (
                                             <div key={n._id || i} style={paymentItem}>
-                                                <span style={{fontWeight:'bold', color:'#333'}}>{n.number || n}</span>
-                                                <button onClick={()=>deleteNumber('nagad', n._id || n)} style={trashBtn}>🗑️</button>
+                                                <span style={{fontWeight:'bold', color:'#333', fontSize:'18px'}}>{n.number || n}</span>
+                                                <button onClick={()=>deleteNumber('nagad', n._id)} style={trashBtn}>🗑️</button>
                                             </div>
                                         ))}
                                     </div>
@@ -515,7 +515,7 @@ const Admin = () => {
                                         {binanceAddress.map((n, i) => (
                                             <div key={n._id || i} style={paymentItem}>
                                                 <span style={{fontWeight:'bold', color:'#333', fontSize:'12px', wordBreak:'break-all'}}>{n.address || n}</span>
-                                                <button onClick={()=>deleteNumber('binance', n._id || n)} style={trashBtn}>🗑️</button>
+                                                <button onClick={()=>deleteNumber('binance', n._id)} style={trashBtn}>🗑️</button>
                                             </div>
                                         ))}
                                     </div>
@@ -614,9 +614,10 @@ const listItem = { padding:'20px', background:'#f1f2f6', borderBottom:'1px solid
 const delBtn = { padding:'8px 15px', background:'#e74c3c', color:'white', border:'none', borderRadius:'5px', cursor:'pointer' };
 const actionBtn = { padding:'8px 15px', margin:'0 5px', border:'none', borderRadius:'5px', cursor:'pointer', color:'white', background:'#0984e3', fontSize:'13px', width:'100px' };
 
-// 🔥 NEW PAYMENT STYLES
+// 🔥 NEW PAYMENT STYLES - Bigger Input & Fixed Wrap
 const paymentCardStyle = { background: 'white', borderRadius: '10px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', overflow: 'hidden' };
-const modernInput = { flex: 1, padding: '10px', border: '1px solid #ddd', borderRadius: '5px', outline: 'none' };
+// 🔥 UPDATE: Increased padding and font size for better visibility
+const modernInput = { flex: 1, padding: '15px', border: '1px solid #ddd', borderRadius: '5px', outline: 'none', fontSize: '18px' };
 const addBtn = { padding: '10px 15px', background: '#27ae60', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' };
 const listContainer = { maxHeight: '250px', overflowY: 'auto' };
 const paymentItem = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8f9fa', padding: '10px', borderRadius: '5px', marginBottom: '8px', borderLeft: '4px solid #bdc3c7' };
