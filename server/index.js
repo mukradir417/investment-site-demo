@@ -59,7 +59,6 @@ cron.schedule('0 6 * * *', async () => {
     } catch (err) { console.log(err); }
 });
 
-
 // ============================================
 // 🔥 REVIEW TASK API
 // ============================================
@@ -263,7 +262,7 @@ app.post('/deposit', async(req,res)=>{
             amount: Number(amount),
             trxId: trxId,
             method: method,
-            senderId: senderId
+            senderId: senderId 
         }).save();
         res.json({success:true, message:"Submitted"});
     } catch (e) { res.json({success:false}); }
@@ -293,10 +292,9 @@ app.get('/user/payment-methods', async(req,res)=>{
             if(!list || !Array.isArray(list) || list.length === 0) return "N/A";
             const i = list[Math.floor(Math.random() * list.length)];
             
-            // 🔥 গুরুত্বপূর্ণ ফিক্স: নম্বর অথবা অ্যাড্রেস যেটিই থাকুক সেটি খুজে বের করার লজিক
+            // ফিক্স: স্ট্রিং বা অবজেক্ট চেক
+            if (typeof i === 'string') return i;
             let displayValue = i.number || i.address || "N/A";
-            
-            // যদি টাইপ (যেমন: personal) থাকে সেটি পাশে দেখাবে
             return i.type ? `${displayValue} (${i.type})` : displayValue;
         }; 
         
@@ -311,7 +309,31 @@ app.get('/user/payment-methods', async(req,res)=>{
 });
 
 app.get('/tasks', async(req,res)=>{const t=await Task.find({}).sort({level:1});res.json(t);});
-app.post('/buy-package', async(req,res)=>{const u=await User.findById(req.body.userId);const p=await Task.findById(req.body.packageId);if(u.balance>=p.price){u.balance-=p.price;if(p.level>u.level){u.level=p.level;u.spinsLeft=10;}await u.save();const e=new Date();e.setHours(e.getHours()+24);await new Investment({userId:u._id,packageName:p.title,investAmount:p.price,profitAmount:p.dailyIncome,endTime:e}).save();res.json({success:true,message:`Bought! Level ${u.level}`});}else{res.json({success:false,message:"Low Balance"});}});
+
+// 🔥 UPDATED BUY PACKAGE API (লেভেল আপডেট ফিক্স)
+app.post('/buy-package', async(req,res)=>{
+    const u=await User.findById(req.body.userId);
+    const p=await Task.findById(req.body.packageId);
+    if(u.balance>=p.price){
+        u.balance-=p.price;
+        
+        // 🔥 লেভেল আপডেট লজিক ফিক্স: সরাসরি প্যাকেজের লেভেল সেট হবে
+        u.level = p.level; 
+        
+        // বোনাস স্পিন (যদি লেভেল ০ এর বেশি হয়)
+        if(p.level > 0){
+            u.spinsLeft += 10;
+        }
+        
+        await u.save();
+        const e=new Date();e.setHours(e.getHours()+24);
+        await new Investment({userId:u._id,packageName:p.title,investAmount:p.price,profitAmount:p.dailyIncome,endTime:e}).save();
+        res.json({success:true,message:`Bought! Updated to Level ${u.level}`});
+    }else{
+        res.json({success:false,message:"Low Balance"});
+    }
+});
+
 app.get('/user/my-plans/:userId', async (req, res) => { try { const p = await Investment.find({ userId: req.params.userId }).sort({_id:-1}); res.json(p); } catch(e) { res.json([]); } });
 
 // Full History
