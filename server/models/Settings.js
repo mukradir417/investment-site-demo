@@ -1,15 +1,27 @@
 const mongoose = require('mongoose');
 
+// 🔥 নতুন স্কিমা যা অবজেক্ট এবং স্ট্রিং দুটোই সাপোর্ট করবে
 const SettingsSchema = new mongoose.Schema({
-    bkash: { type: Array, default: [] }, 
-    nagad: { type: Array, default: [] }, 
-    binance: { type: Array, default: [] },
-    telegram: { type: Array, default: [] },
-    headline: { type: String, default: "Welcome!" },
+    headline: { type: String, default: "Welcome to our app!" },
     telegramLink: { type: String, default: "" },
     
-    // স্পিন প্রাইস লিস্ট (অ্যাডমিন সেট করবে)
-    spinPrizes: { type: Array, default: [10, 20, 50, 100, 0, 5, 200, 500] }
+    // Bkash array now supports objects
+    bkash: [{
+        number: String,
+        type: { type: String, default: 'personal' }
+    }],
+    
+    // Nagad array
+    nagad: [{
+        number: String,
+        type: { type: String, default: 'personal' }
+    }],
+    
+    // Binance array
+    binance: [{
+        address: String,
+        _id: { type: mongoose.Schema.Types.ObjectId, auto: true } // Unique ID for delete
+    }]
 });
 
 module.exports = mongoose.model('Settings', SettingsSchema);

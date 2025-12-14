@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom'; // ব্যাক বাটনের জন্য
 import axios from 'axios';
 
 const Deposit = () => {
+    const navigate = useNavigate();
+    
     // পেমেন্ট মেথড লোড করার স্টেট
     const [methods, setMethods] = useState({ bkash: "Loading...", nagad: "Loading...", binance: "Loading..." });
     
@@ -11,18 +14,23 @@ const Deposit = () => {
     const [sender, setSender] = useState('');
     const [selectedMethod, setSelectedMethod] = useState('bkash'); // ডিফল্ট সিলেক্ট
 
-    // ইউজারের ডাটা (লোকাল স্টোরেজ থেকে)
     const userId = localStorage.getItem("userId"); 
     const API_BASE = "https://earning-api.onrender.com"; 
 
-    // ১. পেমেন্ট নম্বর লোড করা (আপনার সার্ভার ফিক্স অনুযায়ী)
     useEffect(() => {
         axios.get(`${API_BASE}/user/payment-methods`)
-            .then(res => setMethods(res.data))
+            .then(res => {
+                // ডাটা না থাকলে N/A সেট করবে
+                const data = res.data;
+                setMethods({
+                    bkash: data.bkash || "N/A",
+                    nagad: data.nagad || "N/A",
+                    binance: data.binance || "N/A"
+                });
+            })
             .catch(() => setMethods({ bkash: "N/A", nagad: "N/A", binance: "N/A" }));
     }, []);
 
-    // ২. ডিপোজিট রিকোয়েস্ট সাবমিট করা
     const handleSubmit = async () => {
         if (!amount || !trxId || !sender) return alert("Please fill all fields!");
         if (amount < 300) return alert("Minimum deposit 300 Tk");
@@ -41,6 +49,7 @@ const Deposit = () => {
                 setAmount('');
                 setTrxId('');
                 setSender('');
+                navigate('/dashboard'); // সাবমিটের পর ড্যাশবোর্ডে নিয়ে যাবে
             } else {
                 alert("Failed to submit.");
             }
@@ -50,8 +59,17 @@ const Deposit = () => {
     };
 
     return (
-        <div style={{padding:'20px', maxWidth:'500px', margin:'auto', fontFamily:'sans-serif'}}>
-            <h2 style={{textAlign:'center', color:'#333'}}>Add Money</h2>
+        <div style={{padding:'20px', maxWidth:'500px', margin:'auto', fontFamily:'sans-serif', position:'relative'}}>
+            
+            {/* 🔥 BACK BUTTON ADDED */}
+            <button 
+                onClick={() => navigate('/dashboard')} 
+                style={{position:'absolute', top:'20px', left:'10px', background:'none', border:'none', fontSize:'24px', cursor:'pointer'}}
+            >
+                ⬅️
+            </button>
+
+            <h2 style={{textAlign:'center', color:'#333', marginBottom:'30px'}}>Add Money</h2>
             
             {/* পেমেন্ট মেথড বাটন */}
             <div style={{display:'flex', justifyContent:'center', gap:'10px', marginBottom:'20px'}}>
@@ -60,7 +78,7 @@ const Deposit = () => {
                 <button onClick={()=>setSelectedMethod('binance')} style={selectedMethod==='binance' ? activeBtn : inactiveBtn}>Binance</button>
             </div>
 
-            {/* নম্বর ডিসপ্লে কার্ড (সার্ভার থেকে আসা ডাটা) */}
+            {/* নম্বর ডিসপ্লে কার্ড */}
             <div style={cardStyle}>
                 <h4 style={{margin:'0 0 10px 0', color:'#555'}}>Send Money To ({selectedMethod.toUpperCase()}):</h4>
                 <div style={{background:'#f3f4f6', padding:'15px', borderRadius:'8px', textAlign:'center', border:'1px dashed #333'}}>
