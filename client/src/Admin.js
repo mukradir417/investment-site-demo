@@ -18,7 +18,11 @@ const Admin = () => {
     
     // Inputs for Settings
     const [newBkash, setNewBkash] = useState("");
+    const [newBkashType, setNewBkashType] = useState("Personal"); // New Type State
+
     const [newNagad, setNewNagad] = useState("");
+    const [newNagadType, setNewNagadType] = useState("Personal"); // New Type State
+
     const [newBinance, setNewBinance] = useState("");
 
     // Users & Requests
@@ -184,11 +188,11 @@ const Admin = () => {
         }
     };
 
-    // 🔥 UPDATED PAYMENT HANDLERS (With Clean Delete Logic)
-    const addNumber = async (method, number) => {
+    // 🔥 UPDATED PAYMENT HANDLERS (With Type Support)
+    const addNumber = async (method, number, type) => {
         if(!number) return alert("Enter number/address");
         try {
-            const res = await axios.post(`${API_BASE}/admin/add-number`, { method, number, type:'personal' });
+            const res = await axios.post(`${API_BASE}/admin/add-number`, { method, number, type });
             if(res.data.success) {
                 alert("Successfully Added!");
                 if(method==='bkash') setNewBkash(""); 
@@ -200,7 +204,6 @@ const Admin = () => {
     };
 
     const deleteNumber = async (method, id) => {
-        // Here id can be string or objectId, backend handles both now
         if(window.confirm("Delete this number?")) {
             try {
                 const res = await axios.post(`${API_BASE}/admin/delete-number`, { method, numberId: id });
@@ -449,7 +452,7 @@ const Admin = () => {
                     </div>
                 )}
 
-                {/* --- TAB: PAYMENT (New Design) --- */}
+                {/* --- TAB: PAYMENT (UPDATED UI) --- */}
                 {activeTab === 'payment' && (
                     <div>
                         <h1 style={{color: '#2c3e50', borderBottom: '2px solid #3498db', paddingBottom: '10px'}}>💳 Payment Settings</h1>
@@ -464,13 +467,34 @@ const Admin = () => {
                                 </div>
                                 <div style={{padding: '20px'}}>
                                     <div style={{display:'flex', gap:'5px', marginBottom:'15px'}}>
-                                        <input value={newBkash} onChange={e=>setNewBkash(e.target.value)} placeholder="017xxxxxxxx" style={modernInput} />
-                                        <button onClick={()=>addNumber('bkash',newBkash)} style={addBtn}>+</button>
+                                        {/* 🔥 বড় ইনপুট বক্স */}
+                                        <input 
+                                            value={newBkash} 
+                                            onChange={e=>setNewBkash(e.target.value)} 
+                                            placeholder="017xxxxxxxx" 
+                                            style={giantInput} 
+                                        />
+                                        {/* 🔥 নতুন ড্রপডাউন */}
+                                        <select 
+                                            value={newBkashType} 
+                                            onChange={e=>setNewBkashType(e.target.value)}
+                                            style={giantSelect}
+                                        >
+                                            <option value="Personal">Personal</option>
+                                            <option value="Agent">Agent</option>
+                                            <option value="Merchant">Merchant</option>
+                                            <option value="Cashout">Cashout</option>
+                                        </select>
+                                        <button onClick={()=>addNumber('bkash',newBkash, newBkashType)} style={addBtn}>+</button>
                                     </div>
                                     <div style={listContainer}>
                                         {bkashNumbers.map((n, i) => (
                                             <div key={n._id || i} style={paymentItem}>
-                                                <span style={{fontWeight:'bold', color:'#333', fontSize:'18px'}}>{n.number || n}</span>
+                                                <div>
+                                                    <span style={{fontWeight:'bold', color:'#333', fontSize:'18px'}}>{n.number || n}</span>
+                                                    {/* টাইপ শো করবে */}
+                                                    {n.type && <span style={{marginLeft:'8px', fontSize:'12px', background:'#ddd', padding:'2px 5px', borderRadius:'4px'}}>{n.type}</span>}
+                                                </div>
                                                 <button onClick={()=>deleteNumber('bkash', n._id)} style={trashBtn}>🗑️</button>
                                             </div>
                                         ))}
@@ -486,13 +510,34 @@ const Admin = () => {
                                 </div>
                                 <div style={{padding: '20px'}}>
                                     <div style={{display:'flex', gap:'5px', marginBottom:'15px'}}>
-                                        <input value={newNagad} onChange={e=>setNewNagad(e.target.value)} placeholder="018xxxxxxxx" style={modernInput} />
-                                        <button onClick={()=>addNumber('nagad',newNagad)} style={addBtn}>+</button>
+                                        {/* 🔥 বড় ইনপুট বক্স */}
+                                        <input 
+                                            value={newNagad} 
+                                            onChange={e=>setNewNagad(e.target.value)} 
+                                            placeholder="018xxxxxxxx" 
+                                            style={giantInput} 
+                                        />
+                                        {/* 🔥 নতুন ড্রপডাউন */}
+                                        <select 
+                                            value={newNagadType} 
+                                            onChange={e=>setNewNagadType(e.target.value)}
+                                            style={giantSelect}
+                                        >
+                                            <option value="Personal">Personal</option>
+                                            <option value="Agent">Agent</option>
+                                            <option value="Merchant">Merchant</option>
+                                            <option value="Cashout">Cashout</option>
+                                        </select>
+                                        <button onClick={()=>addNumber('nagad',newNagad, newNagadType)} style={addBtn}>+</button>
                                     </div>
                                     <div style={listContainer}>
                                         {nagadNumbers.map((n, i) => (
                                             <div key={n._id || i} style={paymentItem}>
-                                                <span style={{fontWeight:'bold', color:'#333', fontSize:'18px'}}>{n.number || n}</span>
+                                                <div>
+                                                    <span style={{fontWeight:'bold', color:'#333', fontSize:'18px'}}>{n.number || n}</span>
+                                                    {/* টাইপ শো করবে */}
+                                                    {n.type && <span style={{marginLeft:'8px', fontSize:'12px', background:'#ddd', padding:'2px 5px', borderRadius:'4px'}}>{n.type}</span>}
+                                                </div>
                                                 <button onClick={()=>deleteNumber('nagad', n._id)} style={trashBtn}>🗑️</button>
                                             </div>
                                         ))}
@@ -508,8 +553,8 @@ const Admin = () => {
                                 </div>
                                 <div style={{padding: '20px'}}>
                                     <div style={{display:'flex', gap:'5px', marginBottom:'15px'}}>
-                                        <input value={newBinance} onChange={e=>setNewBinance(e.target.value)} placeholder="Wallet Address" style={modernInput} />
-                                        <button onClick={()=>addNumber('binance',newBinance)} style={{...addBtn, background:'#333'}}>Add</button>
+                                        <input value={newBinance} onChange={e=>setNewBinance(e.target.value)} placeholder="Wallet Address" style={giantInput} />
+                                        <button onClick={()=>addNumber('binance',newBinance, 'Wallet')} style={addBtn}>+</button>
                                     </div>
                                     <div style={listContainer}>
                                         {binanceAddress.map((n, i) => (
@@ -522,6 +567,19 @@ const Admin = () => {
                                 </div>
                             </div>
 
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'general' && (
+                    <div>
+                        <h1>App Settings</h1>
+                        <div style={cardStyle}>
+                            <label style={{fontSize:'18px', fontWeight:'bold'}}>News Headline:</label>
+                            <input value={headline} onChange={e=>setHeadline(e.target.value)} style={{...bigInput, marginTop:'10px'}} />
+                            <label style={{marginTop:'20px', display:'block', fontSize:'18px', fontWeight:'bold'}}>Telegram Link:</label>
+                            <input value={telegramLink} onChange={e=>setTelegramLink(e.target.value)} style={{...bigInput, marginTop:'10px'}} />
+                            <button onClick={updateGeneral} style={{...bigBtn, marginTop:'25px', background:'#2c3e50', width:'100%'}}>Save All Settings</button>
                         </div>
                     </div>
                 )}
@@ -584,19 +642,6 @@ const Admin = () => {
                     </div>
                 )}
 
-                {activeTab === 'general' && (
-                    <div>
-                        <h1>App Settings</h1>
-                        <div style={cardStyle}>
-                            <label style={{fontSize:'18px', fontWeight:'bold'}}>News Headline:</label>
-                            <input value={headline} onChange={e=>setHeadline(e.target.value)} style={{...bigInput, marginTop:'10px'}} />
-                            <label style={{marginTop:'20px', display:'block', fontSize:'18px', fontWeight:'bold'}}>Telegram Link:</label>
-                            <input value={telegramLink} onChange={e=>setTelegramLink(e.target.value)} style={{...bigInput, marginTop:'10px'}} />
-                            <button onClick={updateGeneral} style={{...bigBtn, marginTop:'25px', background:'#2c3e50', width:'100%'}}>Save All Settings</button>
-                        </div>
-                    </div>
-                )}
-
             </div>
         </div>
     );
@@ -614,11 +659,14 @@ const listItem = { padding:'20px', background:'#f1f2f6', borderBottom:'1px solid
 const delBtn = { padding:'8px 15px', background:'#e74c3c', color:'white', border:'none', borderRadius:'5px', cursor:'pointer' };
 const actionBtn = { padding:'8px 15px', margin:'0 5px', border:'none', borderRadius:'5px', cursor:'pointer', color:'white', background:'#0984e3', fontSize:'13px', width:'100px' };
 
-// 🔥 NEW PAYMENT STYLES - Bigger Input & Fixed Wrap
+// 🔥 NEW PAYMENT STYLES
 const paymentCardStyle = { background: 'white', borderRadius: '10px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', overflow: 'hidden' };
-// 🔥 UPDATE: Increased padding and font size for better visibility
-const modernInput = { flex: 1, padding: '15px', border: '1px solid #ddd', borderRadius: '5px', outline: 'none', fontSize: '18px' };
-const addBtn = { padding: '10px 15px', background: '#27ae60', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' };
+// বড় ইনপুট বক্স
+const giantInput = { flex: 2, padding: '15px', border: '2px solid #ddd', borderRadius: '5px', outline: 'none', fontSize: '20px', height: '55px', boxSizing: 'border-box' };
+// ড্রপডাউন স্টাইল
+const giantSelect = { flex: 1, padding: '10px', border: '2px solid #ddd', borderRadius: '5px', outline: 'none', fontSize: '16px', height: '55px', cursor: 'pointer', background: '#f9f9f9' };
+const modernInput = { flex: 1, padding: '10px', border: '1px solid #ddd', borderRadius: '5px', outline: 'none', fontSize: '18px' };
+const addBtn = { padding: '10px 20px', background: '#27ae60', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', fontSize: '20px', height: '55px' };
 const listContainer = { maxHeight: '250px', overflowY: 'auto' };
 const paymentItem = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8f9fa', padding: '10px', borderRadius: '5px', marginBottom: '8px', borderLeft: '4px solid #bdc3c7' };
 const trashBtn = { background: '#ff7675', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' };

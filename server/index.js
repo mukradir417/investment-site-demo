@@ -78,7 +78,7 @@ app.post('/admin/add-number', async (req, res) => {
 
         const newEntry = { 
             number: number, // or 'address' for binance, stored in 'number' field mostly or handled below
-            type: type || 'personal', 
+            type: type || 'Personal', // Default to Personal
             _id: new mongoose.Types.ObjectId() 
         };
 
@@ -148,8 +148,11 @@ app.get('/user/payment-methods', async(req,res)=>{
             // Prioritize 'number', fallback to 'address' (for binance), fallback to N/A
             let displayValue = item.number || item.address || "N/A";
             
-            // Optional: Append type if exists (e.g., Personal/Agent)
-            // return item.type ? `${displayValue} (${item.type})` : displayValue;
+            // 🔥 UPDATE: Show Type (Personal/Agent/Merchant) next to number
+            if (item.type && item.number) { 
+                return `${displayValue} (${item.type})`;
+            }
+            
             return displayValue; 
         }; 
         
