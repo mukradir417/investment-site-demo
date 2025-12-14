@@ -1,18 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // ব্যাক বাটনের জন্য
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 const Deposit = () => {
     const navigate = useNavigate();
     
-    // পেমেন্ট মেথড লোড করার স্টেট
     const [methods, setMethods] = useState({ bkash: "Loading...", nagad: "Loading...", binance: "Loading..." });
-    
-    // ফর্ম ডাটা স্টেট
     const [amount, setAmount] = useState('');
     const [trxId, setTrxId] = useState('');
     const [sender, setSender] = useState('');
-    const [selectedMethod, setSelectedMethod] = useState('bkash'); // ডিফল্ট সিলেক্ট
+    const [selectedMethod, setSelectedMethod] = useState('bkash'); 
 
     const userId = localStorage.getItem("userId"); 
     const API_BASE = "https://earning-api.onrender.com"; 
@@ -20,7 +17,6 @@ const Deposit = () => {
     useEffect(() => {
         axios.get(`${API_BASE}/user/payment-methods`)
             .then(res => {
-                // ডাটা না থাকলে N/A সেট করবে
                 const data = res.data;
                 setMethods({
                     bkash: data.bkash || "N/A",
@@ -49,7 +45,7 @@ const Deposit = () => {
                 setAmount('');
                 setTrxId('');
                 setSender('');
-                navigate('/dashboard'); // সাবমিটের পর ড্যাশবোর্ডে নিয়ে যাবে
+                navigate('/dashboard'); 
             } else {
                 alert("Failed to submit.");
             }
@@ -59,61 +55,85 @@ const Deposit = () => {
     };
 
     return (
-        <div style={{padding:'20px', maxWidth:'500px', margin:'auto', fontFamily:'sans-serif', position:'relative'}}>
+        <div style={{minHeight: '100vh', background: '#f8f9fa', padding: '20px', fontFamily: 'Segoe UI, sans-serif'}}>
             
-            {/* 🔥 BACK BUTTON ADDED */}
-            <button 
-                onClick={() => navigate('/dashboard')} 
-                style={{position:'absolute', top:'20px', left:'10px', background:'none', border:'none', fontSize:'24px', cursor:'pointer'}}
-            >
-                ⬅️
-            </button>
-
-            <h2 style={{textAlign:'center', color:'#333', marginBottom:'30px'}}>Add Money</h2>
-            
-            {/* পেমেন্ট মেথড বাটন */}
-            <div style={{display:'flex', justifyContent:'center', gap:'10px', marginBottom:'20px'}}>
-                <button onClick={()=>setSelectedMethod('bkash')} style={selectedMethod==='bkash' ? activeBtn : inactiveBtn}>Bkash</button>
-                <button onClick={()=>setSelectedMethod('nagad')} style={selectedMethod==='nagad' ? activeBtn : inactiveBtn}>Nagad</button>
-                <button onClick={()=>setSelectedMethod('binance')} style={selectedMethod==='binance' ? activeBtn : inactiveBtn}>Binance</button>
-            </div>
-
-            {/* নম্বর ডিসপ্লে কার্ড */}
-            <div style={cardStyle}>
-                <h4 style={{margin:'0 0 10px 0', color:'#555'}}>Send Money To ({selectedMethod.toUpperCase()}):</h4>
-                <div style={{background:'#f3f4f6', padding:'15px', borderRadius:'8px', textAlign:'center', border:'1px dashed #333'}}>
-                    <h2 style={{margin:0, color:'#e2136e', wordBreak:'break-all'}}>
-                        {selectedMethod === 'bkash' ? methods.bkash : 
-                         selectedMethod === 'nagad' ? methods.nagad : 
-                         methods.binance}
-                    </h2>
-                    <small style={{color:'red'}}>* Only Send Money / Cash Out</small>
+            <div style={{maxWidth: '500px', margin: 'auto', background: 'white', padding: '20px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)'}}>
+                
+                {/* 🔥 BEAUTIFUL HEADER WITH BACK BUTTON */}
+                <div style={{display: 'flex', alignItems: 'center', marginBottom: '25px', borderBottom: '1px solid #eee', paddingBottom: '15px'}}>
+                    <button 
+                        onClick={() => navigate('/dashboard')} 
+                        style={{
+                            background: '#f1f2f6', 
+                            border: 'none', 
+                            width: '40px', 
+                            height: '40px', 
+                            borderRadius: '50%', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center', 
+                            cursor: 'pointer', 
+                            fontSize: '18px',
+                            marginRight: '15px',
+                            transition: '0.2s'
+                        }}
+                    >
+                        ⬅
+                    </button>
+                    <h2 style={{margin: 0, fontSize: '22px', color: '#2c3e50'}}>Deposit Money</h2>
                 </div>
-            </div>
 
-            {/* ডিপোজিট ফর্ম */}
-            <div style={{marginTop:'20px'}}>
-                <label style={labelStyle}>Amount (Min 300):</label>
-                <input type="number" placeholder="Enter amount" value={amount} onChange={e=>setAmount(e.target.value)} style={inputStyle} />
+                {/* পেমেন্ট মেথড বাটন */}
+                <div style={{display:'flex', justifyContent:'space-between', gap:'10px', marginBottom:'25px'}}>
+                    <button onClick={()=>setSelectedMethod('bkash')} style={selectedMethod==='bkash' ? activeBtn : inactiveBtn}>Bkash</button>
+                    <button onClick={()=>setSelectedMethod('nagad')} style={selectedMethod==='nagad' ? activeBtn : inactiveBtn}>Nagad</button>
+                    <button onClick={()=>setSelectedMethod('binance')} style={selectedMethod==='binance' ? activeBtn : inactiveBtn}>Binance</button>
+                </div>
 
-                <label style={labelStyle}>Sender Number / ID:</label>
-                <input type="text" placeholder="Your number" value={sender} onChange={e=>setSender(e.target.value)} style={inputStyle} />
+                {/* নম্বর ডিসপ্লে কার্ড */}
+                <div style={cardStyle}>
+                    <h4 style={{margin:'0 0 10px 0', color:'#555', fontSize:'14px'}}>Send Money To ({selectedMethod.toUpperCase()}):</h4>
+                    <div style={{background:'#f3f4f6', padding:'15px', borderRadius:'10px', textAlign:'center', border:'2px dashed #ccc'}}>
+                        <h2 style={{margin:0, color:'#e2136e', wordBreak:'break-all', fontSize:'24px'}}>
+                            {selectedMethod === 'bkash' ? methods.bkash : 
+                             selectedMethod === 'nagad' ? methods.nagad : 
+                             methods.binance}
+                        </h2>
+                        <small style={{color:'red', display:'block', marginTop:'5px', fontWeight:'bold'}}>* Only Send Money / Cash Out</small>
+                    </div>
+                </div>
 
-                <label style={labelStyle}>Transaction ID:</label>
-                <input type="text" placeholder="TrxID (Copy & Paste)" value={trxId} onChange={e=>setTrxId(e.target.value)} style={inputStyle} />
+                {/* ডিপোজিট ফর্ম */}
+                <div style={{marginTop:'25px'}}>
+                    <div style={{marginBottom:'15px'}}>
+                        <label style={labelStyle}>Amount (Min 300 ৳)</label>
+                        <input type="number" placeholder="Example: 500" value={amount} onChange={e=>setAmount(e.target.value)} style={inputStyle} />
+                    </div>
 
-                <button onClick={handleSubmit} style={submitBtn}>Confirm Deposit</button>
+                    <div style={{marginBottom:'15px'}}>
+                        <label style={labelStyle}>Sender Number / Wallet ID</label>
+                        <input type="text" placeholder="017xxxxxxxx" value={sender} onChange={e=>setSender(e.target.value)} style={inputStyle} />
+                    </div>
+
+                    <div style={{marginBottom:'25px'}}>
+                        <label style={labelStyle}>Transaction ID (TrxID)</label>
+                        <input type="text" placeholder="Paste TrxID here" value={trxId} onChange={e=>setTrxId(e.target.value)} style={inputStyle} />
+                    </div>
+
+                    <button onClick={handleSubmit} style={submitBtn}>Confirm Deposit</button>
+                </div>
+
             </div>
         </div>
     );
 };
 
 // --- CSS Styles ---
-const activeBtn = { padding:'10px 20px', background:'#27ae60', color:'white', border:'none', borderRadius:'5px', cursor:'pointer', fontWeight:'bold' };
-const inactiveBtn = { padding:'10px 20px', background:'#ddd', color:'black', border:'none', borderRadius:'5px', cursor:'pointer' };
-const cardStyle = { background:'white', padding:'20px', borderRadius:'10px', boxShadow:'0 2px 10px rgba(0,0,0,0.1)' };
-const inputStyle = { width:'100%', padding:'12px', marginTop:'5px', marginBottom:'15px', borderRadius:'5px', border:'1px solid #ccc', boxSizing:'border-box', fontSize:'16px' };
-const labelStyle = { fontWeight:'bold', color:'#333', display:'block' };
-const submitBtn = { width:'100%', padding:'15px', background:'#2c3e50', color:'white', border:'none', borderRadius:'8px', fontSize:'18px', cursor:'pointer', fontWeight:'bold' };
+const activeBtn = { flex: 1, padding:'12px', background:'#27ae60', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold', fontSize:'14px', transition: '0.3s' };
+const inactiveBtn = { flex: 1, padding:'12px', background:'#eee', color:'#555', border:'none', borderRadius:'8px', cursor:'pointer', fontSize:'14px' };
+const cardStyle = { background:'white', padding:'5px 0' };
+const inputStyle = { width:'100%', padding:'14px', marginTop:'5px', borderRadius:'8px', border:'1px solid #ddd', boxSizing:'border-box', fontSize:'16px', outline: 'none', background: '#fcfcfc' };
+const labelStyle = { fontWeight:'600', color:'#444', display:'block', fontSize:'14px' };
+const submitBtn = { width:'100%', padding:'16px', background:'#2c3e50', color:'white', border:'none', borderRadius:'10px', fontSize:'18px', cursor:'pointer', fontWeight:'bold', boxShadow: '0 4px 10px rgba(44, 62, 80, 0.2)' };
 
 export default Deposit;
