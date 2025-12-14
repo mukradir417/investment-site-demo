@@ -107,6 +107,7 @@ const Admin = () => {
 
     // --- HANDLERS ---
     
+    // 🔥 VIP PACKAGE HANDLERS
     const handleAddPackage = async () => {
         if(!newPackage.title || !newPackage.price) return alert("Title and Price required");
         try {
@@ -183,7 +184,7 @@ const Admin = () => {
         }
     };
 
-    // 🔥 UPDATED PAYMENT HANDLERS (Improved Logic)
+    // 🔥 UPDATED PAYMENT HANDLERS (Fixed Delete Issue)
     const addNumber = async (method, number) => {
         if(!number) return alert("Enter number/address");
         try {

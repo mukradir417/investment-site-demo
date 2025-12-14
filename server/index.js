@@ -32,7 +32,6 @@ mongoose.connect(MONGO_URI)
 .then(async () => {
     console.log("✅ MongoDB Atlas Connected!");
     try {
-        // 🔥 ফিক্স: সেটিংস আছে কিনা চেক করবে, না থাকলে তৈরি করবে
         let count = await Settings.countDocuments();
         if (count === 0) {
             await new Settings().save();
@@ -52,13 +51,11 @@ cron.schedule('0 6 * * *', async () => {
                 await user.save(); 
             }
         }
-        
         const users = await User.find({ level: { $gte: 2 } });
         for (const u of users) {
             if(u.spinsLeft < 10) { u.spinsLeft = 10; await u.save(); }
         }
         await User.updateMany({}, { tossesLeft: 2, dailyTaskCount: 0 });
-
         console.log("✅ Daily Updates Done!");
     } catch (err) { console.log(err); }
 });
@@ -199,32 +196,16 @@ app.post('/register', async(req,res)=>{try{await new User(req.body).save();res.j
 app.post('/login', async(req,res)=>{const u=await User.findOne({email:req.body.email,password:req.body.password});if(u)res.json({success:true,user:u});else res.json({success:false});});
 app.get('/user/:id', async(req,res)=>{const u=await User.findById(req.params.id);res.json(u);});
 
-app.get('/admin/settings', async (req, res) => { 
-    try { 
-        // 🔥 ফিক্স: সবসময় প্রথম সেটিংস ডকুমেন্টটি আনবে
-        let s = await Settings.findOne(); 
-        if(!s) { s = new Settings(); await s.save(); }
-        res.json(s); 
-    } catch (e) { res.json({}); } 
-});
-
-app.post('/admin/update-settings', async (req, res) => { 
-    // 🔥 ফিক্স: নতুন ডকুমেন্ট তৈরি না করে পুরানোটাই আপডেট করবে
-    let s = await Settings.findOne();
-    if(!s) s = new Settings();
-    s.headline = req.body.headline;
-    s.telegramLink = req.body.telegramLink;
-    await s.save();
-    res.json({ success: true, message: "Updated" }); 
-});
+app.get('/admin/settings', async (req, res) => { try { let s = await Settings.findOne(); res.json(s); } catch (e) { res.json({}); } });
+app.post('/admin/update-settings', async (req, res) => { await Settings.findOneAndUpdate({}, req.body, { upsert: true }); res.json({ success: true, message: "Updated" }); });
 
 app.post('/admin/add-number', async (req, res) => { 
     const { method, number, type } = req.body; 
     let s = await Settings.findOne(); 
-    if(!s) s = new Settings(); 
+    if(!s) s=new Settings(); 
     
-    // 🔥 ফিক্স: প্রতিটি নম্বরের জন্য ইউনিক আইডি জেনারেট করা হচ্ছে
-    const newEntry = { number: number, type: type || 'personal', _id: new mongoose.Types.ObjectId() };
+    // ইউনিক আইডি তৈরি
+    const newEntry = { number, type: type || 'personal', _id: new mongoose.Types.ObjectId() };
     
     if(method=='bkash') s.bkash.push(newEntry); 
     if(method=='nagad') s.nagad.push(newEntry); 
@@ -236,15 +217,13 @@ app.post('/admin/add-number', async (req, res) => {
 
 app.post('/admin/delete-number', async (req, res) => { 
     const { method, numberId } = req.body; 
-    let s = await Settings.findOne(); 
-    
-    // 🔥 ফিক্স: স্ট্রিং বা অবজেক্ট আইডি চেক করে সঠিকভাবে ডিলিট করা হচ্ছে
-    if(method=='bkash') s.bkash = s.bkash.filter(n => (n._id ? n._id.toString() !== numberId : n !== numberId)); 
-    if(method=='nagad') s.nagad = s.nagad.filter(n => (n._id ? n._id.toString() !== numberId : n !== numberId)); 
-    if(method=='binance') s.binance = s.binance.filter(n => (n._id ? n._id.toString() !== numberId : n !== numberId)); 
-    
-    await s.save(); 
-    res.json({ success: true, message: "Deleted" }); 
+    try {
+        // $pull অপারেটর ব্যবহার করা হয়েছে যাতে শুধু নির্দিষ্ট নম্বরটি ডিলিট হয়
+        let updateQuery = {};
+        updateQuery[method] = { _id: numberId };
+        await Settings.updateOne({}, { $pull: updateQuery });
+        res.json({ success: true, message: "Deleted" }); 
+    } catch(e) { res.json({ success: false }); }
 });
 
 app.get('/admin/users', async(req,res)=>{const u=await User.find({});res.json(u);});
@@ -313,23 +292,15 @@ app.post('/withdraw', async(req, res) => {
 // 🔥 FIXED PAYMENT METHODS ENDPOINT
 app.get('/user/payment-methods', async(req,res)=>{ 
     try { 
-        // ডাটাবেস থেকে সেটিংস লোড করা
         let s = await Settings.findOne(); 
-        
-        // যদি সেটিংস না থাকে, খালি পাঠান
         if(!s) return res.json({bkash: "N/A", nagad: "N/A", binance: "N/A"}); 
         
         const r = (list) => {
-            // লিস্ট খালি হলে N/A রিটার্ন করুন
             if(!list || !Array.isArray(list) || list.length === 0) return "N/A";
-            
-            // র্যান্ডমলি নম্বর সিলেক্ট করা
             const i = list[Math.floor(Math.random() * list.length)];
             
-            // 🔥 গুরুত্বপূর্ণ ফিক্স: নম্বর টেক্সট হোক বা অবজেক্ট, দুটোই হ্যান্ডেল করবে
-            if (typeof i === 'string') return i; // যদি পুরোনো ডাটা (String) হয়
-            
-            // যদি নতুন ডাটা (Object) হয়
+            // 🔥 ফিক্স: ডাটাবেসে ডেটা Text বা Object যা-ই হোক, তা শো করবে
+            if (typeof i === 'string') return i;
             let displayValue = i.number || i.address || "N/A";
             return i.type ? `${displayValue} (${i.type})` : displayValue;
         }; 
@@ -341,10 +312,7 @@ app.get('/user/payment-methods', async(req,res)=>{
             headline: s.headline,
             telegramLink: s.telegramLink
         }); 
-    } catch(e){ 
-        console.error(e);
-        res.json({bkash: "N/A", nagad: "N/A", binance: "N/A"}); 
-    } 
+    } catch(e){ res.json({bkash: "N/A", nagad: "N/A", binance: "N/A"}); } 
 });
 
 app.get('/tasks', async(req,res)=>{const t=await Task.find({}).sort({level:1});res.json(t);});
