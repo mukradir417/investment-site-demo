@@ -2,107 +2,175 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
-function Withdraw() {
-    const [user, setUser] = useState({});
-    const [amount, setAmount] = useState('');
-    const [pin, setPin] = useState('');
-    
-    // Binding States
-    const [bindNumber, setBindNumber] = useState('');
-    const [bindMethod, setBindMethod] = useState('Bkash');
-
+const Withdraw = () => {
     const navigate = useNavigate();
-    const userId = localStorage.getItem('userId');
-
-    // 🔥 প্রোডাকশন ব্যাকএন্ড ইউআরএল (Render URL)
+    const userId = localStorage.getItem("userId");
     const API_BASE = "https://earning-api.onrender.com"; 
 
+    const [user, setUser] = useState({});
+    const [loading, setLoading] = useState(true);
+
+    // Bind Wallet States
+    const [bindMethod, setBindMethod] = useState("Bkash");
+    const [bindNumber, setBindNumber] = useState("");
+
+    // Withdraw States
+    const [amount, setAmount] = useState("");
+    const [pin, setPin] = useState("");
+    const [withdrawMethod, setWithdrawMethod] = useState(""); // অটো সিলেক্ট হবে
+
     useEffect(() => {
-        if(!userId) {
+        if (!userId) {
             navigate('/');
             return;
         }
-        axios.get(`${API_BASE}/user/${userId}`).then(res => setUser(res.data));
-    }, [userId, navigate, API_BASE]);
+        fetchUserData();
+    }, [userId, navigate]);
 
-    // নাম্বার বাইন্ড ফাংশন
-    const handleBind = () => {
-        if(!bindNumber) return alert("Enter Number!");
-        if(window.confirm("Are you sure? You cannot change this number later!")) {
-            axios.post(`${API_BASE}/user/bind-number`, { userId, number: bindNumber, method: bindMethod })
-                 .then(res => {
-                     alert(res.data.message);
-                     if(res.data.success) window.location.reload();
-                 });
+    const fetchUserData = async () => {
+        try {
+            const res = await axios.get(`${API_BASE}/user/${userId}`);
+            setUser(res.data);
+            
+            // যদি আগে থেকেই বাইন্ড করা থাকে, মেথড অটো সিলেক্ট করে দাও
+            if (res.data.bkashNumber) setWithdrawMethod("Bkash");
+            else if (res.data.nagadNumber) setWithdrawMethod("Nagad");
+            else if (res.data.binanceId) setWithdrawMethod("Binance");
+            
+            setLoading(false);
+        } catch (err) {
+            console.log(err);
         }
     };
 
-    // উইথড্র ফাংশন
-    const handleWithdraw = () => {
-        if(!amount || !pin) return alert("All fields required");
-        
-        axios.post(`${API_BASE}/withdraw`, {
-            userId,
-            amount: Number(amount),
-            number: user.boundNumber, // সেভ করা নাম্বার অটোমেটিক যাবে
-            method: user.boundMethod,
-            pin
-        }).then(res => {
-            alert(res.data.message);
-            if(res.data.success) navigate('/dashboard');
-        }).catch(() => {
-            alert("Connection Error!");
-        });
+    // 🔥 ১. ওয়ালেট বাইন্ডিং ফাংশন (Bind Wallet Function)
+    const handleBindWallet = async () => {
+        if (!bindNumber) return alert("Please enter your wallet number!");
+
+        const confirm = window.confirm(`Are you sure you want to set ${bindMethod} number: ${bindNumber}? You CANNOT change it later.`);
+        if (!confirm) return;
+
+        // ডাটা রেডি করা
+        const payload = { userId };
+        if (bindMethod === "Bkash") payload.bkash = bindNumber;
+        if (bindMethod === "Nagad") payload.nagad = bindNumber;
+        if (bindMethod === "Binance") payload.binance = bindNumber;
+
+        try {
+            const res = await axios.post(`${API_BASE}/user/bind-wallet`, payload);
+            if (res.data.success) {
+                alert("✅ Wallet Linked Successfully!");
+                fetchUserData(); // পেজ রিফ্রেশ না করে ডাটা আপডেট হবে
+            } else {
+                alert("Failed to bind wallet.");
+            }
+        } catch (e) {
+            alert("Server Error. Try again.");
+        }
     };
 
-    return (
-        <div className="container" style={{padding:'20px', maxWidth:'500px', margin:'0 auto', fontFamily:'sans-serif'}}>
-            <h2 style={{textAlign:'center', color:'#e65100'}}>Withdraw Money</h2>
+    // 🔥 ২. টাকা উইথড্র করার ফাংশন (Withdraw Function)
+    const handleWithdraw = async () => {
+        if (!amount || !pin) return alert("Please fill all fields!");
+        if (Number(amount) < 300) return alert("Minimum withdraw is 300 Tk");
 
-            {/* যদি নাম্বার বাইন্ড না করা থাকে */}
-            {!user.boundNumber ? (
-                <div style={{background:'#fff3e0', padding:'20px', borderRadius:'10px', border:'1px solid #ffb74d'}}>
-                    <h3 style={{marginTop:0}}>⚠️ Bind Wallet First</h3>
-                    <p style={{fontSize:'12px', color:'red'}}>Note: You can add only ONE number. Can't change later.</p>
-                    
-                    <label>Select Method</label>
-                    <select value={bindMethod} onChange={e=>setBindMethod(e.target.value)} style={inp}>
+        // অটোমেটিক সেভ করা নম্বর নেওয়া
+        let targetNumber = "";
+        if(withdrawMethod === 'Bkash') targetNumber = user.bkashNumber;
+        if(withdrawMethod === 'Nagad') targetNumber = user.nagadNumber;
+        if(withdrawMethod === 'Binance') targetNumber = user.binanceId;
+
+        try {
+            const res = await axios.post(`${API_BASE}/withdraw`, {
+                userId,
+                amount: Number(amount),
+                number: targetNumber, // অটোমেটিক যাবে
+                method: withdrawMethod,
+                pin
+            });
+
+            if (res.data.success) {
+                alert("✅ Withdraw Request Sent!");
+                navigate('/dashboard');
+            } else {
+                alert("❌ " + res.data.message);
+            }
+        } catch (e) {
+            alert("Server Error");
+        }
+    };
+
+    if (loading) return <div style={{padding:'20px'}}>Loading...</div>;
+
+    // চেক করা হচ্ছে ইউজার নম্বর সেট করেছে কি না
+    const isWalletBound = user.bkashNumber || user.nagadNumber || user.binanceId;
+
+    return (
+        <div style={{minHeight: '100vh', background: '#f4f6f8', padding: '20px', fontFamily: 'Segoe UI'}}>
+            <button onClick={() => navigate('/dashboard')} style={{border: 'none', background: 'transparent', fontSize: '20px', cursor: 'pointer', marginBottom: '15px'}}>⬅ Back</button>
+            
+            <h2 style={{textAlign:'center', color:'#2c3e50'}}>Withdraw Money</h2>
+
+            {/* 🔥 কন্ডিশন: যদি ওয়ালেট সেট করা না থাকে, তাহলে এই ফর্ম দেখাবে */}
+            {!isWalletBound ? (
+                <div style={cardStyle}>
+                    <div style={{background:'#fff3cd', padding:'10px', borderRadius:'5px', border:'1px solid #ffeeba', color:'#856404', marginBottom:'15px'}}>
+                        <strong>⚠️ Bind Wallet First</strong> <br/>
+                        <small>Note: You can add only ONE number. Can't change later.</small>
+                    </div>
+
+                    <label style={labelStyle}>Select Method</label>
+                    <select value={bindMethod} onChange={e=>setBindMethod(e.target.value)} style={inputStyle}>
                         <option value="Bkash">Bkash</option>
                         <option value="Nagad">Nagad</option>
                         <option value="Binance">Binance</option>
                     </select>
 
-                    <label>Wallet Number/Address</label>
-                    <input placeholder="017..." value={bindNumber} onChange={e=>setBindNumber(e.target.value)} style={inp} />
-                    
-                    <button onClick={handleBind} style={btnBind}>Bind Wallet Now</button>
+                    <label style={labelStyle}>Wallet Number/Address</label>
+                    <input 
+                        value={bindNumber} 
+                        onChange={e=>setBindNumber(e.target.value)} 
+                        placeholder={bindMethod === 'Binance' ? "Wallet Address" : "017xxxxxxxx"} 
+                        style={inputStyle} 
+                    />
+
+                    <button onClick={handleBindWallet} style={{...btnStyle, background:'#e67e22'}}>
+                        Bind Wallet Now
+                    </button>
                 </div>
             ) : (
-                /* যদি নাম্বার বাইন্ড করা থাকে */
-                <div style={{background:'white', padding:'20px', borderRadius:'10px', boxShadow:'0 0 10px #eee'}}>
-                    <div style={{background:'#e8f5e9', padding:'10px', borderRadius:'5px', marginBottom:'20px'}}>
-                        <p style={{margin:0, fontSize:'12px', color:'#2e7d32'}}>Linked Wallet:</p>
-                        <h3 style={{margin:'5px 0'}}>{user.boundMethod}: {user.boundNumber}</h3>
-                        <small>Locked 🔒</small>
+                /* 🔥 যদি ওয়ালেট সেট করা থাকে, তাহলে উইথড্র ফর্ম দেখাবে */
+                <div style={cardStyle}>
+                    <div style={{textAlign:'center', marginBottom:'20px'}}>
+                        <p style={{margin:0, color:'#555'}}>Your Current Balance</p>
+                        <h1 style={{margin:'5px 0', color:'#27ae60'}}>৳ {user.balance}</h1>
                     </div>
 
-                    <label>Withdraw Amount (Min 300)</label>
-                    <input type="number" placeholder="Amount" value={amount} onChange={e=>setAmount(e.target.value)} style={inp} />
+                    {/* কোন মেথডে টাকা যাবে তা অটোমেটিক দেখাবে */}
+                    <div style={{background:'#e8f5e9', padding:'15px', borderRadius:'10px', marginBottom:'20px', border:'1px solid #c8e6c9'}}>
+                        <span style={{display:'block', fontSize:'12px', color:'#2e7d32', fontWeight:'bold'}}>RECEIVING ACCOUNT ({withdrawMethod.toUpperCase()})</span>
+                        <span style={{fontSize:'18px', fontWeight:'bold', color:'#333'}}>
+                            {withdrawMethod === 'Bkash' ? user.bkashNumber : withdrawMethod === 'Nagad' ? user.nagadNumber : user.binanceId}
+                        </span>
+                    </div>
 
-                    <label>Withdraw PIN</label>
-                    <input type="password" placeholder="4 Digit PIN" value={pin} onChange={e=>setPin(e.target.value)} style={inp} />
+                    <label style={labelStyle}>Amount (Min 300)</label>
+                    <input type="number" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="Amount" style={inputStyle} />
 
-                    <button onClick={handleWithdraw} style={btnWithdraw}>Confirm Withdraw</button>
+                    <label style={labelStyle}>Withdraw PIN</label>
+                    <input type="password" value={pin} onChange={e=>setPin(e.target.value)} placeholder="Enter PIN" style={inputStyle} />
+
+                    <button onClick={handleWithdraw} style={btnStyle}>Confirm Withdraw</button>
                 </div>
             )}
-            
-            <button onClick={()=>navigate('/dashboard')} style={{width:'100%', marginTop:'15px', background:'transparent', border:'none', cursor:'pointer', color:'#666'}}>Cancel</button>
         </div>
     );
-}
+};
 
-const inp = {width:'100%', padding:'12px', marginBottom:'15px', border:'1px solid #ddd', borderRadius:'5px', boxSizing:'border-box'};
-const btnBind = {width:'100%', padding:'12px', background:'#e65100', color:'white', border:'none', borderRadius:'5px', fontWeight:'bold', cursor:'pointer'};
-const btnWithdraw = {width:'100%', padding:'12px', background:'#2e7d32', color:'white', border:'none', borderRadius:'5px', fontSize:'16px', fontWeight:'bold', cursor:'pointer'};
+// Styles
+const cardStyle = { background: 'white', padding: '25px', borderRadius: '15px', boxShadow: '0 5px 20px rgba(0,0,0,0.05)', maxWidth:'500px', margin:'auto' };
+const labelStyle = { display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#444' };
+const inputStyle = { width: '100%', padding: '14px', marginBottom: '20px', borderRadius: '8px', border: '1px solid #ddd', boxSizing: 'border-box', fontSize: '16px' };
+const btnStyle = { width: '100%', padding: '15px', background: '#2c3e50', color: 'white', border: 'none', borderRadius: '10px', fontSize: '18px', fontWeight: 'bold', cursor: 'pointer' };
 
 export default Withdraw;
