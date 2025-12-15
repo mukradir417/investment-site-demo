@@ -10,7 +10,7 @@ const Withdraw = require('./models/Withdraw');
 const Deposit = require('./models/Deposit');
 const Settings = require('./models/Settings');
 const Investment = require('./models/Investment');
-const ReviewTask = require('./models/ReviewTask');
+const ReviewTask = require('./models/ReviewTask'); // 🔥 Ensure this file exists
 
 const app = express();
 
@@ -265,7 +265,7 @@ app.post('/withdraw', async(req, res) => {
         const user = await User.findById(userId);
         
         // 🔥 নতুন লজিক: যদি পারমিশন না থাকে, তবেই টাস্ক চেক করবে
-        if (!user.canWithdrawWithoutTasks) {
+        if (user.canWithdrawWithoutTasks !== true) { 
             if (user.dailyTaskCount < user.taskLimit) {
                 return res.json({ success: false, message: `Complete tasks first!` });
             }
@@ -343,27 +343,36 @@ app.post('/admin/set-task-limit', async (req, res) => {
     } catch (e) { res.json({ success: false, message: "Error" }); }
 });
 
+// 🔥 REVIEW TASK API (Fixed Crash Issue)
 app.get('/user/get-random-task', async (req, res) => {
     const { userId } = req.query;
     try {
         const user = await User.findById(userId);
         if (!user) return res.json({ success: false, message: "User not found" });
 
+        // টাস্ক লিমিট চেক
         if (user.dailyTaskCount >= user.taskLimit) {
-            return res.json({ success: false, message: "Daily Task Completed! Come back tomorrow." });
+            return res.json({ success: false, message: "Daily Limit Reached!" });
         }
 
-        const task = await ReviewTask.aggregate([
-            { $match: { active: true } }, 
-            { $sample: { size: 1 } }      
-        ]);
-        
-        if (task.length > 0) {
-            res.json({ success: true, task: task[0], completed: user.dailyTaskCount, total: user.taskLimit });
-        } else {
-            res.json({ success: false, message: "No tasks available" });
+        // 🔥 ডাটাবেস থেকে টাস্ক খোঁজা (Error Fix)
+        const count = await ReviewTask.countDocuments({ active: true });
+        if(count === 0) {
+            return res.json({ success: false, message: "No tasks available yet!" });
         }
-    } catch (err) { res.json({ success: false }); }
+
+        const random = Math.floor(Math.random() * count);
+        const task = await ReviewTask.findOne({ active: true }).skip(random);
+        
+        if (task) {
+            res.json({ success: true, task: task, completed: user.dailyTaskCount, total: user.taskLimit });
+        } else {
+            res.json({ success: false, message: "Task fetch failed" });
+        }
+    } catch (err) { 
+        console.log("Task Error:", err);
+        res.json({ success: false, message: "Server Error" }); 
+    }
 });
 
 app.post('/user/claim-review-reward', async (req, res) => {
