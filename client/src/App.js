@@ -15,7 +15,8 @@ import Spin from './Spin';
 import Toss from './Toss';
 import AdminLogin from './AdminLogin'; 
 import Notifications from './Notifications'; 
-import ReviewTask from './ReviewTask'; // 🔥 Review Task Import Added
+import ReviewTask from './ReviewTask'; 
+import BindWallet from './BindWallet'; // 🔥 BindWallet Import Added
 
 function App() {
   return (
@@ -27,6 +28,10 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/deposit" element={<Deposit />} />
         <Route path="/withdraw" element={<Withdraw />} />
+        
+        {/* 🔥 Bind Wallet Route Added */}
+        <Route path="/bind-wallet" element={<BindWallet />} />
+
         <Route path="/history" element={<History />} />
         <Route path="/profile" element={<Profile />} />
         
@@ -37,7 +42,7 @@ function App() {
         <Route path="/toss" element={<Toss />} />
         <Route path="/spin" element={<Spin />} />
         
-        {/* 🔥 Review Task Route Added */}
+        {/* 🔥 Review Task Route */}
         <Route path="/review-task" element={<ReviewTask />} />
 
         {/* Admin Routes */}

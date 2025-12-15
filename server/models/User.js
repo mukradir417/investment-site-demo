@@ -15,7 +15,7 @@ const UserSchema = new mongoose.Schema({
     boundNumber: { type: String, default: "" }, // ইউজার যেই নাম্বারে টাকা নিবে
     boundMethod: { type: String, default: "" }, // Bkash/Nagad
 
-    // 🔥 ADDED: New Wallet Binding Fields (নতুন যোগ করা হয়েছে)
+    // 🔥 ADDED: New Wallet Binding Fields (এইগুলো নতুন যোগ করা হয়েছে - ঠিক আছে)
     bkashNumber: { type: String, default: "" },
     nagadNumber: { type: String, default: "" },
     binanceId: { type: String, default: "" },

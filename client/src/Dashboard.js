@@ -143,7 +143,7 @@ function Dashboard() {
                 </div>
             </div>
 
-            {/* --- ACTION BUTTONS (With Review Task) --- */}
+            {/* --- ACTION BUTTONS (With Review Task & Bind Wallet) --- */}
             <div style={{display:'flex', gap:'10px', padding:'15px 20px 0 20px', flexWrap:'wrap'}}>
                 
                 <div onClick={()=>navigate('/profile')} style={actionBtn}>
@@ -165,6 +165,11 @@ function Dashboard() {
                 {/* 🔥 REVIEW TASK BUTTON ADDED 🔥 */}
                 <div onClick={()=>navigate('/review-task')} style={{...actionBtn, background:'#e0f7fa', border:'1px solid #b2ebf2'}}>
                     <span style={{fontSize:'20px'}}>⭐</span> Review
+                </div>
+
+                {/* 🔥 BIND WALLET BUTTON ADDED (NEW) 🔥 */}
+                <div onClick={()=>navigate('/bind-wallet')} style={{...actionBtn, background:'#f3e5f5', border:'1px solid #e1bee7'}}>
+                    <span style={{fontSize:'20px'}}>💳</span> Bind Wallet
                 </div>
                 
                 <div onClick={openLiveChat} style={actionBtn}>
