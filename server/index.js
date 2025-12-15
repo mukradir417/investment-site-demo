@@ -214,7 +214,26 @@ app.get('/admin/withdrawals', async(req,res)=>{const w=await Withdraw.find({stat
 app.post('/admin/approve-deposit', async(req,res)=>{const d=await Deposit.findById(req.body.depositId);if(d.status==='approved')return;d.status='approved';await d.save();const u=await User.findById(d.userId);u.balance+=d.amount;if(d.amount>=500){u.spinsLeft+=10;u.notifications.push({text:"Bonus 10 Spins!",date:new Date()})}await u.save();res.json({success:true,message:"Approved"});});
 app.post('/admin/approve-withdraw', async(req,res)=>{const w=await Withdraw.findById(req.body.withdrawId);w.status='approved';await w.save();res.json({success:true,message:"Paid"});});
 
-// User Actions: Deposit & Withdraw
+// ============================================
+// 🔥 User Actions: Wallet Bind, Deposit & Withdraw
+// ============================================
+
+// 🔥 NEW: Wallet Binding API (Added Here)
+app.post('/user/bind-wallet', async (req, res) => {
+    const { userId, bkash, nagad, binance } = req.body;
+    try {
+        const updateData = {};
+        if (bkash) updateData.bkashNumber = bkash;
+        if (nagad) updateData.nagadNumber = nagad;
+        if (binance) updateData.binanceId = binance;
+
+        await User.findByIdAndUpdate(userId, updateData);
+        res.json({ success: true, message: "Wallet Linked Successfully!" });
+    } catch (e) {
+        res.json({ success: false, message: "Failed to bind wallet" });
+    }
+});
+
 app.post('/deposit', async(req,res)=>{
     const { userId, amount, trxId, method, senderId } = req.body;
     try {

@@ -11,9 +11,14 @@ const UserSchema = new mongoose.Schema({
     balance: { type: Number, default: 0 },
     withdrawPin: { type: String, default: "1234" }, // ডিফল্ট পিন
     
-    // --- Saved Payment Details ---
+    // --- Saved Payment Details (Old fields kept as requested) ---
     boundNumber: { type: String, default: "" }, // ইউজার যেই নাম্বারে টাকা নিবে
     boundMethod: { type: String, default: "" }, // Bkash/Nagad
+
+    // 🔥 ADDED: New Wallet Binding Fields (নতুন যোগ করা হয়েছে)
+    bkashNumber: { type: String, default: "" },
+    nagadNumber: { type: String, default: "" },
+    binanceId: { type: String, default: "" },
 
     // --- System Role ---
     role: { type: String, default: 'user' }, // 'admin' or 'user'
@@ -38,7 +43,7 @@ const UserSchema = new mongoose.Schema({
 
     // --- ⭐ REVIEW TASK DATA (NEW) ---
     taskLimit: { type: Number, default: 5 }, // এডমিন সেট করবে (ডিফল্ট ৫টা)
-    dailyTaskCount: { type: Number, default: 0 }, // আজকে কয়টা টাস্ক কমপ্লিট করেছে
+    dailyTaskCount: { type: Number, default: 0 }, // আজকে কয়টা টাস্ক কমপ্লিট করেছে
     extraTaskLimit: { type: Number, default: 0 } // (অপশনাল) যদি বোনাস টাস্ক দিতে চান
 
 }, { timestamps: true });
