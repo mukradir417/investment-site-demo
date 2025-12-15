@@ -10,7 +10,7 @@ const Withdraw = require('./models/Withdraw');
 const Deposit = require('./models/Deposit');
 const Settings = require('./models/Settings');
 const Investment = require('./models/Investment');
-const ReviewTask = require('./models/ReviewTask'); // 🔥 Ensure this file exists
+const ReviewTask = require('./models/ReviewTask'); // 🔥 Ensure this file exists in models folder
 
 const app = express();
 
@@ -77,16 +77,14 @@ app.post('/admin/add-number', async (req, res) => {
         if(!s) s = new Settings(); 
 
         const newEntry = { 
-            number: number, // or 'address' for binance, stored in 'number' field mostly or handled below
-            type: type || 'Personal', // Default to Personal
+            number: number, 
+            type: type || 'Personal', 
             _id: new mongoose.Types.ObjectId() 
         };
 
         if(method === 'bkash') s.bkash.push(newEntry); 
         if(method === 'nagad') s.nagad.push(newEntry); 
         
-        // Special case for Binance if your schema uses 'address' instead of 'number'
-        // Ideally, normalize schema, but assuming mixed usage:
         if(method === 'binance') {
              s.binance.push({ address: number, _id: new mongoose.Types.ObjectId() }); 
         }
@@ -109,11 +107,9 @@ app.post('/admin/delete-number', async (req, res) => {
         // Helper function to filter the array
         const filterArray = (arr) => {
             return arr.filter(item => {
-                // If item is an object with _id
                 if (item && item._id) {
                     return item._id.toString() !== numberId;
                 }
-                // If item is a simple string (legacy data)
                 return item !== numberId;
             });
         };
@@ -141,14 +137,10 @@ app.get('/user/payment-methods', async(req,res)=>{
             
             const item = list[Math.floor(Math.random() * list.length)];
             
-            // FIX: Check if it is a legacy String
             if (typeof item === 'string') return item;
 
-            // FIX: Check if it is an Object (New Data)
-            // Prioritize 'number', fallback to 'address' (for binance), fallback to N/A
             let displayValue = item.number || item.address || "N/A";
             
-            // 🔥 UPDATE: Show Type (Personal/Agent/Merchant) next to number
             if (item.type && item.number) { 
                 return `${displayValue} (${item.type})`;
             }
@@ -197,7 +189,7 @@ app.post('/admin/send-notification', async (req, res) => {
     } catch (e) { res.json({ success: false }); }
 });
 
-// 🔥 UPDATED: Admin User Update (Permission added)
+// 🔥 UPDATED: Admin User Update (Permission added for Withdraw)
 app.post('/admin/update-user-profile', async (req, res) => {
     const { userId, password, withdrawPin, canWithdrawWithoutTasks } = req.body;
     try {
@@ -205,7 +197,7 @@ app.post('/admin/update-user-profile', async (req, res) => {
         if (password) updateData.password = password;
         if (withdrawPin) updateData.withdrawPin = withdrawPin;
         
-        // 🔥 এই লাইনটি নতুন যোগ করা হলো
+        // 🔥 পারমিশন আপডেট লজিক
         if (canWithdrawWithoutTasks !== undefined) {
             updateData.canWithdrawWithoutTasks = canWithdrawWithoutTasks;
         }
@@ -252,7 +244,7 @@ app.post('/deposit', async(req,res)=>{
             trxId: trxId,
             method: method,
             senderId: senderId,
-            receiverNumber // 🔥 Saving admin number here
+            receiverNumber
         }).save();
         res.json({success:true, message:"Submitted"});
     } catch (e) { res.json({success:false}); }
@@ -264,7 +256,7 @@ app.post('/withdraw', async(req, res) => {
     try {
         const user = await User.findById(userId);
         
-        // 🔥 নতুন লজিক: যদি পারমিশন না থাকে, তবেই টাস্ক চেক করবে
+        // 🔥 পারমিশন চেক: যদি canWithdrawWithoutTasks 'true' না হয়, তাহলে টাস্ক চেক করবে
         if (user.canWithdrawWithoutTasks !== true) { 
             if (user.dailyTaskCount < user.taskLimit) {
                 return res.json({ success: false, message: `Complete tasks first!` });
@@ -350,7 +342,6 @@ app.get('/user/get-random-task', async (req, res) => {
         const user = await User.findById(userId);
         if (!user) return res.json({ success: false, message: "User not found" });
 
-        // টাস্ক লিমিট চেক
         if (user.dailyTaskCount >= user.taskLimit) {
             return res.json({ success: false, message: "Daily Limit Reached!" });
         }
