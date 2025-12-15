@@ -18,11 +18,9 @@ const Admin = () => {
     
     // Inputs for Settings
     const [newBkash, setNewBkash] = useState("");
-    // 🔥 নতুন স্টেট: টাইপ সিলেক্ট করার জন্য
     const [newBkashType, setNewBkashType] = useState("Personal"); 
 
     const [newNagad, setNewNagad] = useState("");
-    // 🔥 নতুন স্টেট: টাইপ সিলেক্ট করার জন্য
     const [newNagadType, setNewNagadType] = useState("Personal");
 
     const [newBinance, setNewBinance] = useState("");
@@ -35,6 +33,9 @@ const Admin = () => {
     const [editingUser, setEditingUser] = useState(null); 
     const [editPass, setEditPass] = useState("");
     const [editPin, setEditPin] = useState("");
+    
+    // 🔥 NEW STATE: Permission Checkbox
+    const [canBypass, setCanBypass] = useState(false);
 
     const [deposits, setDeposits] = useState([]);
     const [withdraws, setWithdraws] = useState([]);
@@ -144,6 +145,8 @@ const Admin = () => {
         setEditingUser(user);
         setEditPass(user.password); 
         setEditPin(user.withdrawPin);
+        // 🔥 পারমিশন লোড করা হচ্ছে
+        setCanBypass(user.canWithdrawWithoutTasks || false);
         window.scrollTo(0,0);
     };
 
@@ -153,7 +156,9 @@ const Admin = () => {
             await axios.post(`${API_BASE}/admin/update-user-profile`, {
                 userId: editingUser._id,
                 password: editPass,
-                withdrawPin: editPin
+                withdrawPin: editPin,
+                // 🔥 পারমিশন পাঠানো হচ্ছে
+                canWithdrawWithoutTasks: canBypass 
             });
             alert("✅ User Info Updated!");
             setEditingUser(null);
@@ -190,11 +195,10 @@ const Admin = () => {
         }
     };
 
-    // 🔥 UPDATED PAYMENT HANDLERS (এখন Type সহ ডাটা পাঠাবে)
+    // 🔥 UPDATED PAYMENT HANDLERS
     const addNumber = async (method, number, type) => {
         if(!number) return alert("Enter number/address");
         try {
-            // Type সহ পাঠানো হচ্ছে
             const res = await axios.post(`${API_BASE}/admin/add-number`, { method, number, type });
             if(res.data.success) {
                 alert("Successfully Added!");
@@ -358,6 +362,20 @@ const Admin = () => {
                                         <input value={editPin} onChange={e=>setEditPin(e.target.value)} style={bigInput} />
                                     </div>
                                 </div>
+
+                                {/* 🔥 NEW: Permission Checkbox Added Here */}
+                                <div style={{marginTop:'15px', background:'white', padding:'10px', borderRadius:'5px', border:'1px solid #ddd'}}>
+                                    <label style={{cursor:'pointer', display:'flex', alignItems:'center', gap:'10px', fontWeight:'bold', fontSize:'16px', color:'#d35400'}}>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={canBypass} 
+                                            onChange={e=>setCanBypass(e.target.checked)} 
+                                            style={{width:'20px', height:'20px'}}
+                                        />
+                                        Allow Withdraw Without Completing Tasks?
+                                    </label>
+                                </div>
+
                                 <div style={{marginTop:'20px', display:'flex', gap:'15px'}}>
                                     <button onClick={saveUserEdit} style={{...bigBtn, background:'#28a745'}}>SAVE CHANGES</button>
                                     <button onClick={()=>setEditingUser(null)} style={{...bigBtn, background:'#6c757d'}}>CANCEL</button>
@@ -383,6 +401,13 @@ const Admin = () => {
                                             🔑 <b>Pass:</b> <span style={{color:'blue'}}>{u.password}</span> | 🔒 <b>PIN:</b> <span style={{color:'red'}}>{u.withdrawPin}</span> | 💰 <b>Bal:</b> <span style={{color:'green'}}>৳{u.balance}</span>
                                         </div> <br/>
                                         <small style={{color:'#999'}}>ID: {u._id}</small>
+                                        
+                                        {/* Show Badge if allowed */}
+                                        {u.canWithdrawWithoutTasks && (
+                                            <span style={{marginLeft:'10px', background:'#27ae60', color:'white', padding:'2px 5px', borderRadius:'3px', fontSize:'10px'}}>
+                                                NO TASK LIMIT
+                                            </span>
+                                        )}
                                     </div>
                                     <div style={{display:'flex', flexDirection:'column', gap:'5px'}}>
                                         <button onClick={()=>startEditUser(u)} style={{...actionBtn, background:'#f39c12'}}>Edit</button>
@@ -470,7 +495,7 @@ const Admin = () => {
                                 </div>
                                 <div style={{padding: '20px'}}>
                                     <div style={{display:'flex', gap:'5px', marginBottom:'15px'}}>
-                                        {/* 🔥 বড় ইনপুট */}
+                                        {/* 🔥 বড় ইনপুট */}
                                         <input 
                                             value={newBkash} 
                                             onChange={e=>setNewBkash(e.target.value)} 
@@ -512,7 +537,7 @@ const Admin = () => {
                                 </div>
                                 <div style={{padding: '20px'}}>
                                     <div style={{display:'flex', gap:'5px', marginBottom:'15px'}}>
-                                        {/* 🔥 বড় ইনপুট */}
+                                        {/* 🔥 বড় ইনপুট */}
                                         <input 
                                             value={newNagad} 
                                             onChange={e=>setNewNagad(e.target.value)} 
@@ -662,7 +687,7 @@ const actionBtn = { padding:'8px 15px', margin:'0 5px', border:'none', borderRad
 
 // 🔥 NEW PAYMENT STYLES
 const paymentCardStyle = { background: 'white', borderRadius: '10px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', overflow: 'hidden' };
-// বড় ইনপুট বক্স
+// বড় ইনপুট বক্স
 const giantInput = { flex: 2, padding: '15px', border: '2px solid #ddd', borderRadius: '5px', outline: 'none', fontSize: '20px', height: '55px', boxSizing: 'border-box' };
 // ড্রপডাউন স্টাইল
 const giantSelect = { flex: 1, padding: '10px', border: '2px solid #ddd', borderRadius: '5px', outline: 'none', fontSize: '16px', height: '55px', cursor: 'pointer', background: '#f9f9f9' };

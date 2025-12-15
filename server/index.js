@@ -197,12 +197,19 @@ app.post('/admin/send-notification', async (req, res) => {
     } catch (e) { res.json({ success: false }); }
 });
 
+// 🔥 UPDATED: Admin User Update (Permission added)
 app.post('/admin/update-user-profile', async (req, res) => {
-    const { userId, password, withdrawPin } = req.body;
+    const { userId, password, withdrawPin, canWithdrawWithoutTasks } = req.body;
     try {
         const updateData = {};
         if (password) updateData.password = password;
         if (withdrawPin) updateData.withdrawPin = withdrawPin;
+        
+        // 🔥 এই লাইনটি নতুন যোগ করা হলো
+        if (canWithdrawWithoutTasks !== undefined) {
+            updateData.canWithdrawWithoutTasks = canWithdrawWithoutTasks;
+        }
+
         await User.findByIdAndUpdate(userId, updateData);
         res.json({ success: true, message: "User Data Updated!" });
     } catch (e) { res.json({ success: false }); }
@@ -235,7 +242,7 @@ app.post('/user/bind-wallet', async (req, res) => {
 });
 
 app.post('/deposit', async(req,res)=>{
-    const { userId, amount, trxId, method, senderId } = req.body;
+    const { userId, amount, trxId, method, senderId, receiverNumber } = req.body;
     try {
         const u = await User.findById(userId);
         await new Deposit({
@@ -244,22 +251,34 @@ app.post('/deposit', async(req,res)=>{
             amount: Number(amount),
             trxId: trxId,
             method: method,
-            senderId: senderId
+            senderId: senderId,
+            receiverNumber // 🔥 Saving admin number here
         }).save();
         res.json({success:true, message:"Submitted"});
     } catch (e) { res.json({success:false}); }
 });
 
+// 🔥 UPDATED: Withdraw Logic (Permission Check Added)
 app.post('/withdraw', async(req, res) => {
     const { userId, amount, number, method, pin } = req.body;
     try {
         const user = await User.findById(userId);
-        if (user.dailyTaskCount < user.taskLimit) return res.json({ success: false, message: `Complete tasks first!` });
+        
+        // 🔥 নতুন লজিক: যদি পারমিশন না থাকে, তবেই টাস্ক চেক করবে
+        if (!user.canWithdrawWithoutTasks) {
+            if (user.dailyTaskCount < user.taskLimit) {
+                return res.json({ success: false, message: `Complete tasks first!` });
+            }
+        }
+
         if (amount < 300) return res.json({ success: false, message: "Min 300 Tk" });
         if (user.withdrawPin !== pin) return res.json({ success: false, message: "Wrong PIN" });
         if (user.balance < amount) return res.json({ success: false, message: "Insufficient Balance" });
-        user.balance -= amount; await user.save();
+        
+        user.balance -= amount; 
+        await user.save();
         await new Withdraw({ userId, userName: user.name, method, number, amount }).save();
+        
         res.json({ success: true, message: "Submitted!" });
     } catch (e) { res.json({ success: false }); }
 });

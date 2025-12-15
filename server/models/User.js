@@ -24,6 +24,10 @@ const UserSchema = new mongoose.Schema({
     role: { type: String, default: 'user' }, // 'admin' or 'user'
     isBanned: { type: Boolean, default: false },
 
+    // 🔥 NEW: Withdraw Permission Field (নতুন যোগ করা হলো)
+    // যদি true হয়, তাহলে টাস্ক ছাড়াই উইথড্র করতে পারবে
+    canWithdrawWithoutTasks: { type: Boolean, default: false }, 
+
     // --- 🔔 NOTIFICATION SYSTEM ---
     notifications: [
         {
