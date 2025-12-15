@@ -43,7 +43,7 @@ const Withdraw = () => {
         }
     };
 
-    // 🔥 ১. ওয়ালেট বাইন্ডিং ফাংশন (Bind Wallet Function)
+    // 🔥 ১. ওয়ালেট বাইন্ডিং ফাংশন (Bind Wallet Function)
     const handleBindWallet = async () => {
         if (!bindNumber) return alert("Please enter your wallet number!");
 
@@ -74,7 +74,15 @@ const Withdraw = () => {
         if (!amount || !pin) return alert("Please fill all fields!");
         if (Number(amount) < 300) return alert("Minimum withdraw is 300 Tk");
 
-        // অটোমেটিক সেভ করা নম্বর নেওয়া
+        // 🔥 লজিক আপডেট: যদি অ্যাডমিন পারমিশন দেয় (canWithdrawWithoutTasks), তাহলে টাস্ক চেক করবে না
+        if (!user.canWithdrawWithoutTasks) {
+            // পারমিশন না থাকলে আগের মতোই চেক করবে
+            if (user.dailyTaskCount < user.taskLimit) {
+                return alert(`⚠️ Task Incomplete! You finished ${user.dailyTaskCount}/${user.taskLimit} tasks.`);
+            }
+        }
+
+        // অটোমেটিক সেভ করা নম্বর নেওয়া
         let targetNumber = "";
         if(withdrawMethod === 'Bkash') targetNumber = user.bkashNumber;
         if(withdrawMethod === 'Nagad') targetNumber = user.nagadNumber;
@@ -111,7 +119,7 @@ const Withdraw = () => {
             
             <h2 style={{textAlign:'center', color:'#2c3e50'}}>Withdraw Money</h2>
 
-            {/* 🔥 কন্ডিশন: যদি ওয়ালেট সেট করা না থাকে, তাহলে এই ফর্ম দেখাবে */}
+            {/* 🔥 কন্ডিশন: যদি ওয়ালেট সেট করা না থাকে, তাহলে এই ফর্ম দেখাবে */}
             {!isWalletBound ? (
                 <div style={cardStyle}>
                     <div style={{background:'#fff3cd', padding:'10px', borderRadius:'5px', border:'1px solid #ffeeba', color:'#856404', marginBottom:'15px'}}>
@@ -139,11 +147,18 @@ const Withdraw = () => {
                     </button>
                 </div>
             ) : (
-                /* 🔥 যদি ওয়ালেট সেট করা থাকে, তাহলে উইথড্র ফর্ম দেখাবে */
+                /* 🔥 যদি ওয়ালেট সেট করা থাকে, তাহলে উইথড্র ফর্ম দেখাবে */
                 <div style={cardStyle}>
                     <div style={{textAlign:'center', marginBottom:'20px'}}>
                         <p style={{margin:0, color:'#555'}}>Your Current Balance</p>
                         <h1 style={{margin:'5px 0', color:'#27ae60'}}>৳ {user.balance}</h1>
+                        
+                        {/* 🔥 ইউজারকে দেখাবে যদি তার স্পেশাল পারমিশন থাকে */}
+                        {user.canWithdrawWithoutTasks && (
+                            <span style={{background:'#d4edda', color:'#155724', padding:'5px 10px', borderRadius:'15px', fontSize:'12px', fontWeight:'bold'}}>
+                                ✨ VIP Access: No Task Required
+                            </span>
+                        )}
                     </div>
 
                     {/* কোন মেথডে টাকা যাবে তা অটোমেটিক দেখাবে */}
