@@ -9,29 +9,51 @@ const ReviewTask = () => {
     const [timer, setTimer] = useState(0); // কাউন্টডাউন টাইমার
     const [currentTask, setCurrentTask] = useState(null);
     const [isClaimable, setIsClaimable] = useState(false);
+    
+    // 🔥 আপডেট: ইউজারের টাস্ক লিমিট দেখার জন্য স্টেট
+    const [userData, setUserData] = useState({ dailyTaskCount: 0, taskLimit: 5 });
 
     // 🔥 প্রোডাকশন ব্যাকএন্ড ইউআরএল (Render URL)
     const API_BASE = "https://earning-api.onrender.com"; 
 
     useEffect(() => {
-        if(!userId) navigate('/');
+        if(!userId) {
+            navigate('/');
+        } else {
+            fetchUserStatus(); // 🔥 পেজ লোড হলে স্ট্যাটাস চেক করবে
+        }
     }, [userId, navigate]);
 
-    // ১. র‍্যান্ডম টাস্ক আনা এবং শুরু করা
+    // 🔥 ১. ইউজারের বর্তমান অবস্থা (কয়টা টাস্ক করেছে) জানার ফাংশন
+    const fetchUserStatus = async () => {
+        try {
+            const res = await axios.get(`${API_BASE}/user/${userId}`);
+            setUserData(res.data);
+        } catch (e) {
+            console.log("Error loading user data");
+        }
+    };
+
+    // ২. র‍্যান্ডম টাস্ক আনা এবং শুরু করা
     const startTask = async () => {
+        // 🔥 চেক: যদি লিমিট শেষ হয়ে যায়
+        if (userData.dailyTaskCount >= userData.taskLimit) {
+            return alert("✅ Daily Task Limit Reached! Come back tomorrow.");
+        }
+
         setLoading(true);
         try {
-            // 🔥 userId কুয়েরি প্যারামিটার হিসেবে পাঠানো হচ্ছে লিমিট চেক করার জন্য
+            // 🔥 userId কুয়েরি প্যারামিটার হিসেবে পাঠানো হচ্ছে লিমিট চেক করার জন্য
             const res = await axios.get(`${API_BASE}/user/get-random-task?userId=${userId}`);
             
             if(res.data.success) {
                 const task = res.data.task;
                 setCurrentTask(task);
                 
-                // ২. নতুন ট্যাবে গুগল ম্যাপ লিংক ওপেন করা
+                // ৩. নতুন ট্যাবে গুগল ম্যাপ লিংক ওপেন করা
                 window.open(task.link, '_blank');
                 
-                // ৩. টাইমার শুরু (১০ সেকেন্ড)
+                // ৪. টাইমার শুরু (১০ সেকেন্ড)
                 setTimer(10);
                 let timeLeft = 10;
                 const interval = setInterval(() => {
@@ -43,7 +65,7 @@ const ReviewTask = () => {
                     }
                 }, 1000);
             } else {
-                // যদি টাস্ক লিমিট শেষ হয়ে যায় বা কোনো টাস্ক না থাকে
+                // যদি টাস্ক লিমিট শেষ হয়ে যায় বা কোনো টাস্ক না থাকে
                 alert(res.data.message || "No tasks available right now!");
             }
         } catch(e) { 
@@ -52,7 +74,7 @@ const ReviewTask = () => {
         setLoading(false);
     };
 
-    // ৪. টাকা ক্লেইম করা
+    // ৫. টাকা ক্লেইম করা
     const claimReward = async () => {
         try {
             const res = await axios.post(`${API_BASE}/user/claim-review-reward`, {
@@ -61,7 +83,11 @@ const ReviewTask = () => {
             });
             if(res.data.success) {
                 alert(`Congratulation! You earned ৳${currentTask.reward}`);
-                navigate('/dashboard'); // ড্যাশবোর্ডে ফেরত
+                
+                // 🔥 আপডেট: ক্লেইম করার পর ডাটা রিফ্রেশ এবং রিসেট
+                setIsClaimable(false);
+                setCurrentTask(null);
+                fetchUserStatus(); // কাউন্টার আপডেট হবে
             } else {
                 alert(res.data.message || "Claim failed");
             }
@@ -72,8 +98,20 @@ const ReviewTask = () => {
 
     return (
         <div style={{minHeight:'100vh', background:'#f4f6f8', padding:'20px', textAlign:'center', fontFamily:'sans-serif'}}>
-            <h2 style={{color:'#333'}}>Google Map Review</h2>
-            <div style={{background:'white', padding:'30px', borderRadius:'10px', boxShadow:'0 5px 15px rgba(0,0,0,0.1)', maxWidth:'400px', margin:'50px auto'}}>
+            
+            {/* ব্যাক বাটন */}
+            <div style={{textAlign:'left'}}>
+                 <button onClick={()=>navigate('/dashboard')} style={{border:'none', background:'transparent', fontSize:'20px', cursor:'pointer', color:'#555'}}>⬅ Back</button>
+            </div>
+
+            <h2 style={{color:'#333', marginTop:'10px'}}>Daily Review Task</h2>
+            
+            {/* 🔥 টাস্ক কাউন্টার শো করা */}
+            <div style={{background:'#e0f7fa', padding:'10px', borderRadius:'8px', display:'inline-block', margin:'10px 0', color:'#006064', fontWeight:'bold'}}>
+                Task Completed: {userData.dailyTaskCount} / {userData.taskLimit}
+            </div>
+
+            <div style={{background:'white', padding:'30px', borderRadius:'10px', boxShadow:'0 5px 15px rgba(0,0,0,0.1)', maxWidth:'400px', margin:'30px auto'}}>
                 
                 {/* আইকন বা ইমেজ */}
                 <div style={{fontSize:'50px', marginBottom:'20px'}}>⭐</div>
@@ -81,30 +119,37 @@ const ReviewTask = () => {
                 <h3>Earn Money by Reviewing</h3>
                 <p style={{color:'#666'}}>Click start, give a 5-star review, wait 10 seconds, and verify.</p>
 
-                {!currentTask && (
-                    <button onClick={startTask} disabled={loading} style={btnStyle}>
-                        {loading ? "Loading..." : "START TASK NOW"}
-                    </button>
-                )}
-
-                {currentTask && timer > 0 && (
-                    <div style={{marginTop:'20px'}}>
-                        <h2 style={{color:'#e67e22'}}>Wait: {timer}s</h2>
-                        <p>Checking your review...</p>
+                {/* যদি সব টাস্ক শেষ হয়ে যায় */}
+                {userData.dailyTaskCount >= userData.taskLimit ? (
+                    <div style={{color:'green', fontWeight:'bold', fontSize:'18px', padding:'20px', border:'2px dashed green', borderRadius:'10px'}}>
+                        🎉 All Tasks Done for Today!
                     </div>
-                )}
+                ) : (
+                    <>
+                        {!currentTask && (
+                            <button onClick={startTask} disabled={loading} style={btnStyle}>
+                                {loading ? "Loading..." : "🚀 START TASK NOW"}
+                            </button>
+                        )}
 
-                {isClaimable && (
-                    <div style={{marginTop:'20px'}}>
-                        <h3 style={{color:'green'}}>Task Completed!</h3>
-                        <button onClick={claimReward} style={{...btnStyle, background:'#27ae60'}}>
-                            CLAIM ৳{currentTask.reward}
-                        </button>
-                    </div>
+                        {currentTask && timer > 0 && (
+                            <div style={{marginTop:'20px'}}>
+                                <h2 style={{color:'#e67e22'}}>Wait: {timer}s</h2>
+                                <p>Checking your review...</p>
+                            </div>
+                        )}
+
+                        {isClaimable && (
+                            <div style={{marginTop:'20px'}}>
+                                <h3 style={{color:'green'}}>Task Completed!</h3>
+                                <button onClick={claimReward} style={{...btnStyle, background:'#27ae60'}}>
+                                    💰 CLAIM ৳{currentTask.reward}
+                                </button>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
-            
-            <button onClick={()=>navigate('/dashboard')} style={{marginTop:'20px', background:'none', border:'none', cursor:'pointer', color:'#555', fontSize:'16px'}}>⬅ Back to Home</button>
         </div>
     );
 };
